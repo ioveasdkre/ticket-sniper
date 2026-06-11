@@ -16,7 +16,8 @@
     "https://tixcraft.com/*",
     "https://*.tixcraft.com/*",
     "http://localhost:*/*",
-    "https://localhost:*/*"
+    "https://localhost:*/*",
+        "https://www.momoshop.com.tw/*"
   ],
   "action": {
     "default_title": "搶票助手 Pro"
@@ -47,7 +48,24 @@
         "https://*.kktix.com/*"
       ],
       "js": ["kktix/kktix-content.js"],
-      "run_at": "document_idle"
+      "run_at": "document_idle",
+    },
+    {
+      "matches": [
+        "https://www.momoshop.com.tw/*"
+      ],
+      "js": ["momoshop/momoshop-alert-override.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "https://www.momoshop.com.tw/*"
+      ],
+      "js": ["momoshop/momoshop-content.js"],
+      "run_at": "document_start",
+      "all_frames": true
     }
   ],
   "background": {

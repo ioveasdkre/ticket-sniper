@@ -10,6 +10,7 @@
 // 網址匹配規則
 const KKTIX_PATTERN = /^https:\/\/([a-z0-9-]+\.)?kktix\.com\//;
 const TIXCRAFT_PATTERN = /^https:\/\/([a-z0-9-]+\.)?tixcraft\.com\//;
+const MOMOSHOP_PATTERN = /^https:\/\/([a-z0-9-]+\.)?momoshop\.com\.tw\//;
 
 // ── 獨立視窗開啟 popup ───────────────────────────────────────
 // 點擊擴充功能圖示時，以獨立視窗開啟 popup.html，
@@ -141,6 +142,32 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     });
   }
 });
+
+  // ── Momoshop：頁面開始載入即重注入 ────────────────────────
+  if (MOMOSHOP_PATTERN.test(pageUrl) && changeInfo.status === "loading") {
+    chrome.storage.local.get(["momoshop_isRunning", "momoshop_runningConfig"], async (result) => {
+      if (!result.momoshop_isRunning || !result.momoshop_runningConfig) return;
+      console.log("[搶票助手] 偵測到 Momoshop 頁面跳轉，立即重新注入腳本...");
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          files: ["momoshop/momoshop-content.js"],
+        });
+      } catch (err) {
+        console.warn("[搶票助手] Momoshop 腳本注入失敗:", err.message);
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, 200));
+      const cfg = result.momoshop_runningConfig;
+      chrome.tabs.sendMessage(tabId, { action: "START", ...cfg }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.warn("[搶票助手] Momoshop START 失敗:", chrome.runtime.lastError.message);
+          return;
+        }
+        console.log("[搶票助手] Momoshop 已恢復搶票流程", response);
+      });
+    });
+  }
 
 // ── OCR API 代理（Tixcraft 專用）──────────────────────────────
 // content.js 在 HTTPS 環境無法直接對 http://localhost 發出 fetch，
