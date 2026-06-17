@@ -314,8 +314,8 @@ if (window.__momoshopLoaded) {
         sendLogMomoshop(`已選擇行動支付：${config.mobile_payment_method}`, "info");
 
         if (config.auto_submit) {
-            // const submitButton = await helper.waitForElement("a#orderSave", 10000, document, isStopped);
-            // clickElement(submitButton, "確認結帳按鈕");
+            const submitButton = await helper.waitForElement("a#orderSave", 10000, document, isStopped);
+            clickElement(submitButton, "確認結帳按鈕");
             sendLogMomoshop("已點擊確認結帳按鈕", "success");
         } else {
             sendLogMomoshop("已填完訂單資料，依設定不自動送出", "success");
