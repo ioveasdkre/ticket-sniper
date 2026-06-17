@@ -17,6 +17,7 @@ if (window.__momoshopLoaded) {
     const DEFAULT_CONFIG = {
         target_url: "",
         reload_delay: 1,
+        order_info_mode: "custom",
         receiver_name: "",
         receiver_phone: "",
         receiver_city: "",
@@ -32,6 +33,7 @@ if (window.__momoshopLoaded) {
         return {
             target_url: String(raw.targetUrl ?? raw.target_url ?? DEFAULT_CONFIG.target_url).trim(),
             reload_delay: Math.max(0.1, Number(raw.reloadDelay ?? raw.reload_delay ?? DEFAULT_CONFIG.reload_delay) || 1),
+            order_info_mode: normalizeOrderInfoMode(raw.orderInfoMode ?? raw.order_info_mode ?? DEFAULT_CONFIG.order_info_mode),
             receiver_name: String(raw.receiverName ?? raw.receiver_name ?? DEFAULT_CONFIG.receiver_name).trim(),
             receiver_phone: String(raw.receiverPhone ?? raw.receiver_phone ?? DEFAULT_CONFIG.receiver_phone).replace(/\D/g, ""),
             receiver_city: String(raw.receiverCity ?? raw.receiver_city ?? DEFAULT_CONFIG.receiver_city).trim(),
@@ -50,6 +52,10 @@ if (window.__momoshopLoaded) {
             index: Number.isInteger(value.index) ? value.index : Number(value.index),
             text: String(value.text ?? "").trim(),
         };
+    }
+
+    function normalizeOrderInfoMode(value) {
+        return value === "account" ? "account" : "custom";
     }
 
     const controller = helper.createContentController({
@@ -264,10 +270,17 @@ if (window.__momoshopLoaded) {
             .catch(() => null);
         if (orderForm) {
             sendLogMomoshop("同頁偵測到訂單表單，繼續填寫資料", "info");
-            await orderStepFillAndSubmit(config);
+            await orderStepHandle(config);
         }
 
         return true;
+    }
+
+    async function orderStepHandle(config) {
+        if (config.order_info_mode === "account") {
+            return orderStepSubmitOnly();
+        }
+        return orderStepFillAndSubmit(config);
     }
 
     async function orderStepFillAndSubmit(config) {
@@ -324,6 +337,16 @@ if (window.__momoshopLoaded) {
         return true;
     }
 
+    async function orderStepSubmitOnly() {
+        sendLogMomoshop("使用原始帳號訂購資訊，直接確認結帳", "info");
+        await waitForCondition(() => document.querySelector("form#orderForm"), 15000, 150);
+
+        const submitButton = await helper.waitForElement("a#orderSave", 10000, document, isStopped);
+        clickElement(submitButton, "確認結帳按鈕");
+        sendLogMomoshop("已點擊確認結帳按鈕", "success");
+        return true;
+    }
+
     async function runFlow(config, token) {
         try {
             if (token !== controller.state.runToken) return;
@@ -345,7 +368,7 @@ if (window.__momoshopLoaded) {
                     break;
 
                 case "ORDER_FORM":
-                    await orderStepFillAndSubmit(config);
+                    await orderStepHandle(config);
                     break;
 
                 case "DONE":

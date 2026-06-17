@@ -173,6 +173,7 @@ function buildMomoshopStartPayload(session) {
     action: "START",
     targetUrl: cfg.targetUrl ?? session?.url ?? "",
     reloadDelay: cfg.reloadDelay ?? 1,
+    orderInfoMode: cfg.orderInfoMode === "account" ? "account" : "custom",
     receiverName: cfg.receiverName ?? "",
     receiverPhone: cfg.receiverPhone ?? "",
     receiverCity: cfg.receiverCity ?? "",

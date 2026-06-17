@@ -378,7 +378,7 @@
             <div id="momoshop-tab-basic" class="tab-panel active">
                 <div class="section-group">
                     <div class="section-group-title">商品分頁啟動方式</div>
-                    <div class="hint">請先手動開好要搶購的 momo 商品分頁，再到「執行控制」啟動；一次最多啟動 6 個商品分頁。</div>
+                    <div class="hint">請先手動開好要搶購的 momo 商品分頁，再到「執行控制」啟動；會處理所有已開啟的商品分頁。</div>
                 </div>
                 <div class="button-group">
                     <button id="momoshop-refreshTabsBtn" class="btn btn-save">🔄 重新整理分頁</button>
@@ -397,6 +397,15 @@
             </div>
 
             <div id="momoshop-tab-receiver" class="tab-panel">
+                <div class="section">
+                    <label class="label" for="momoshop-orderInfoMode">訂購資訊來源</label>
+                    <select id="momoshop-orderInfoMode" class="input">
+                        <option value="custom">自訂訂購資訊</option>
+                        <option value="account">使用原始帳號訂購資訊</option>
+                    </select>
+                    <div class="hint">選擇原始帳號資訊時，訂單頁會直接確認結帳，不填寫下方收件付款欄位。</div>
+                </div>
+                <div id="momoshop-customOrderInfoFields">
                 <div class="section">
                     <label class="label label-required" for="momoshop-receiverName">收件人姓名 <span
                             class="required-mark">*</span></label>
@@ -435,6 +444,7 @@
                         <option value="Linepay_ID">Line Pay</option>
                     </select>
                 </div>
+                </div>
                 <button id="momoshop-saveReceiverBtn" class="btn btn-save">💾 儲存收件付款</button>
             </div>
 
@@ -449,7 +459,7 @@
                 </div>
                 <div class="log-header">
                     <label class="label">商品分頁清單</label>
-                    <span class="hint">最多 6 個執行中分頁</span>
+                    <span class="hint">不限執行中分頁數</span>
                 </div>
                 <div id="momoshop-tabSessionList" class="momoshop-tab-list">
                     <div class="ticket-placeholder">尚未偵測到 momo 商品分頁</div>

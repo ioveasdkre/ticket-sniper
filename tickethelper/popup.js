@@ -1012,6 +1012,8 @@ async function tcInit() {
 // ════════════════════════════════════════════════════════════════
 
 const momoReloadDelayEl = document.getElementById("momoshop-reloadDelay");
+const momoOrderInfoModeEl = document.getElementById("momoshop-orderInfoMode");
+const momoCustomOrderInfoFieldsEl = document.getElementById("momoshop-customOrderInfoFields");
 const momoReceiverNameEl = document.getElementById("momoshop-receiverName");
 const momoReceiverPhoneEl = document.getElementById("momoshop-receiverPhone");
 const momoReceiverCityEl = document.getElementById("momoshop-receiverCity");
@@ -1033,7 +1035,6 @@ const momoSpecSelectionPanel = document.getElementById("momoshop-specSelectionPa
 const momoStopAllTabsBtn = document.getElementById("momoshop-stopAllTabsBtn");
 
 const MOMO_MAX_LOG_ENTRIES = 300;
-const MOMO_MAX_RUNNING_TABS = 6;
 const MOMO_PRODUCT_URL_PATTERNS = ["https://www.momoshop.com.tw/product/*"];
 const MOMO_FLOW_URL_PATTERNS = [
     "https://www.momoshop.com.tw/product/*",
@@ -1069,6 +1070,7 @@ function momoSetStatus(state, text) {
 function momoBuildSettings() {
     return {
         reloadDelay: parseFloat(momoReloadDelayEl.value) || 1,
+        orderInfoMode: momoOrderInfoModeEl.value === "account" ? "account" : "custom",
         receiverName: momoReceiverNameEl.value.trim(),
         receiverPhone: momoReceiverPhoneEl.value.replace(/\D/g, ""),
         receiverCity: momoReceiverCityEl.value.trim(),
@@ -1080,15 +1082,22 @@ function momoBuildSettings() {
     };
 }
 
+function momoSyncOrderInfoFieldsVisibility() {
+    if (!momoCustomOrderInfoFieldsEl) return;
+    momoCustomOrderInfoFieldsEl.hidden = momoOrderInfoModeEl.value === "account";
+}
+
 function momoLoadSettings() {
     chrome.storage.local.get(
         [
-            "momoshop_targetUrl", "momoshop_reloadDelay", "momoshop_receiverName",
+            "momoshop_targetUrl", "momoshop_reloadDelay", "momoshop_orderInfoMode", "momoshop_receiverName",
             "momoshop_receiverPhone", "momoshop_receiverCity", "momoshop_receiverPost",
             "momoshop_receiverAddr", "momoshop_paymentMethod", "momoshop_mobilePaymentMethod",
         ],
         (result) => {
             momoReloadDelayEl.value = result.momoshop_reloadDelay ?? 1;
+            momoOrderInfoModeEl.value = result.momoshop_orderInfoMode === "account" ? "account" : "custom";
+            momoSyncOrderInfoFieldsVisibility();
             momoReceiverNameEl.value = result.momoshop_receiverName ?? "";
             momoReceiverPhoneEl.value = result.momoshop_receiverPhone ?? "";
             momoReceiverCityEl.value = result.momoshop_receiverCity ?? "";
@@ -1103,6 +1112,7 @@ function momoLoadSettings() {
 function momoSettingsToStorage(settings) {
     return {
         momoshop_reloadDelay: settings.reloadDelay,
+        momoshop_orderInfoMode: settings.orderInfoMode,
         momoshop_receiverName: settings.receiverName,
         momoshop_receiverPhone: settings.receiverPhone,
         momoshop_receiverCity: settings.receiverCity,
@@ -1295,6 +1305,7 @@ function momoSaveSettings(show = true) {
 }
 
 async function momoValidateSettings(settings) {
+    if (settings.orderInfoMode === "account") return "";
     if (!settings.receiverName) return "請填收件人姓名";
     if (settings.receiverPhone.length !== 10) return "手機號碼需為 10 碼";
     if (!settings.receiverCity) return "請填縣市";
@@ -1504,6 +1515,7 @@ async function momoStopAllTabs() {
 
 momoSaveBtn.addEventListener("click", () => momoSaveSettings(true));
 momoSaveReceiverBtn.addEventListener("click", () => momoSaveSettings(true));
+momoOrderInfoModeEl.addEventListener("change", () => momoSyncOrderInfoFieldsVisibility());
 momoRefreshTabsBtn.addEventListener("click", () => momoRefreshPopupPanels());
 momoStopAllTabsBtn.addEventListener("click", () => momoStopAllTabs());
 momoFetchSpecsBtn.addEventListener("click", async () => {
@@ -1513,10 +1525,7 @@ momoFetchSpecsBtn.addEventListener("click", async () => {
         showToast("找不到 momo 商品分頁", "error");
         return;
     }
-    const targetTabs = tabs.slice(0, MOMO_MAX_RUNNING_TABS);
-    if (tabs.length > MOMO_MAX_RUNNING_TABS) {
-        momoAddLog(`⚠️ 偵測到 ${tabs.length} 個商品分頁，僅抓取前 ${MOMO_MAX_RUNNING_TABS} 個`, "warn");
-    }
+    const targetTabs = tabs;
     await momoRefreshSpecsForTabs(targetTabs);
 });
 
@@ -1536,10 +1545,7 @@ momoStartBtn.addEventListener("click", async () => {
         return;
     }
 
-    const targetTabs = tabs.slice(0, MOMO_MAX_RUNNING_TABS);
-    if (tabs.length > MOMO_MAX_RUNNING_TABS) {
-        momoAddLog(`⚠️ 偵測到 ${tabs.length} 個商品分頁，僅啟動前 ${MOMO_MAX_RUNNING_TABS} 個`, "warn");
-    }
+    const targetTabs = tabs;
 
     await popupStorageSet(momoSettingsToStorage(settings));
     const refreshedSessions = await momoRefreshSpecsForTabs(targetTabs);
