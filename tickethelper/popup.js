@@ -36,10 +36,10 @@ function showToast(message, type = "info", duration = 2500) {
         <span class="toast-icon">${icons[type] || icons.info}</span>
         <span class="toast-text">${message}</span>
     `;
-    
+
     // 移除舊的類型樣式
     toastEl.className = "toast";
-    
+
     // 添加新的類型樣式並顯示
     toastEl.classList.add(type, "show");
 
@@ -66,19 +66,19 @@ chrome.storage.local.get(["globalEnabled"], (result) => {
 // 監聽開關變更
 globalEnableToggle.addEventListener("change", () => {
     const enabled = globalEnableToggle.checked;
-    
+
     // 儲存狀態
     chrome.storage.local.set({ globalEnabled: enabled }, () => {
         console.log(`[全域開關] 已${enabled ? "啟用" : "停用"}腳本注入`);
         showToast(
-            enabled ? "腳本注入已啟用" : "腳本注入已停用", 
+            enabled ? "腳本注入已啟用" : "腳本注入已停用",
             enabled ? "success" : "info"
         );
     });
-    
+
     // 更新 UI
     updateToggleUI(enabled);
-    
+
     // 通知所有 content scripts 狀態已改變
     chrome.tabs.query({}, (tabs) => {
         tabs.forEach(tab => {
@@ -119,7 +119,8 @@ document.querySelectorAll(".platform-btn").forEach(btn => {
 
         // 切換面板顯示
         document.querySelectorAll(".platform-panel").forEach(p => p.classList.remove("active"));
-        document.getElementById(`panel-${platform}`).classList.add("active");
+        const panel = document.getElementById(`panel-${platform}`);
+            if (panel) panel.classList.add("active");
     });
 });
 
@@ -154,20 +155,20 @@ document.querySelectorAll("#panel-tixcraft .tab-btn").forEach(btn => {
 // ════════════════════════════════════════════════════════════════
 
 // ── KKTIX DOM 元素引用 ────────────────────────────────────────────
-const kktixBuyCountEl       = document.getElementById("kktix-buyCount");
-const kktixChooseAreaEl     = document.getElementById("kktix-chooseArea");
-const kktixMemberCodeEl     = document.getElementById("kktix-memberCode");
-const kktixQuestionEl       = document.getElementById("kktix-question");
+const kktixBuyCountEl = document.getElementById("kktix-buyCount");
+const kktixChooseAreaEl = document.getElementById("kktix-chooseArea");
+const kktixMemberCodeEl = document.getElementById("kktix-memberCode");
+const kktixQuestionEl = document.getElementById("kktix-question");
 const kktixTicketFallbackEl = document.getElementById("kktix-ticketFallback");
-const kktixReloadDelayEl    = document.getElementById("kktix-reloadDelay");
-const kktixStartBtn         = document.getElementById("kktix-startBtn");
-const kktixStopBtn          = document.getElementById("kktix-stopBtn");
-const kktixSaveBtn          = document.getElementById("kktix-saveBtn");
-const kktixSaveBtnLogic     = document.getElementById("kktix-saveBtnLogic");
-const kktixLogArea          = document.getElementById("kktix-logArea");
-const kktixStatusDot        = document.getElementById("kktix-statusDot");
-const kktixStatusText       = document.getElementById("kktix-statusText");
-const kktixClearLogBtn      = document.getElementById("kktix-clearLogBtn");
+const kktixReloadDelayEl = document.getElementById("kktix-reloadDelay");
+const kktixStartBtn = document.getElementById("kktix-startBtn");
+const kktixStopBtn = document.getElementById("kktix-stopBtn");
+const kktixSaveBtn = document.getElementById("kktix-saveBtn");
+const kktixSaveBtnLogic = document.getElementById("kktix-saveBtnLogic");
+const kktixLogArea = document.getElementById("kktix-logArea");
+const kktixStatusDot = document.getElementById("kktix-statusDot");
+const kktixStatusText = document.getElementById("kktix-statusText");
+const kktixClearLogBtn = document.getElementById("kktix-clearLogBtn");
 
 // 記錄勾選的票種優先順序
 let kktixCheckOrder = [];
@@ -214,12 +215,12 @@ function kktixRefreshBadges() {
 
 function kktixLoadSettings() {
     chrome.storage.local.get(
-        ["kktix_buyCount", "kktix_chooseArea", "kktix_memberCode", "kktix_question", 
-         "kktix_ticketFallback", "kktix_reloadDelay"],
+        ["kktix_buyCount", "kktix_chooseArea", "kktix_memberCode", "kktix_question",
+            "kktix_ticketFallback", "kktix_reloadDelay"],
         (result) => {
-            kktixBuyCountEl.value   = result.kktix_buyCount ?? 2;
+            kktixBuyCountEl.value = result.kktix_buyCount ?? 2;
             kktixMemberCodeEl.value = result.kktix_memberCode ?? "";
-            kktixQuestionEl.value   = result.kktix_question ?? "";
+            kktixQuestionEl.value = result.kktix_question ?? "";
             kktixTicketFallbackEl.value = result.kktix_ticketFallback ?? "refresh";
             kktixReloadDelayEl.value = result.kktix_reloadDelay ?? 1;
             // chooseArea 陣列顯示於 textarea（備用）
@@ -239,12 +240,12 @@ function kktixBuildSettings() {
         chooseArea = raw ? raw.split(/[,;]/).map(s => s.trim()).filter(Boolean) : [];
     }
     return {
-        buyCount:       parseInt(kktixBuyCountEl.value, 10) || 2,
+        buyCount: parseInt(kktixBuyCountEl.value, 10) || 2,
         chooseArea,
-        memberCode:     kktixMemberCodeEl.value.trim(),
-        question:       kktixQuestionEl.value.trim(),
+        memberCode: kktixMemberCodeEl.value.trim(),
+        question: kktixQuestionEl.value.trim(),
         ticketFallback: kktixTicketFallbackEl.value,
-        reloadDelay:    parseFloat(kktixReloadDelayEl.value) || 1,
+        reloadDelay: parseFloat(kktixReloadDelayEl.value) || 1,
     };
 }
 
@@ -414,34 +415,34 @@ kktixStartBtn.addEventListener("click", async () => {
     }
 
     chrome.storage.local.set({
-        kktix_buyCount:   settings.buyCount,
+        kktix_buyCount: settings.buyCount,
         kktix_memberCode: settings.memberCode,
-        kktix_question:   settings.question,
+        kktix_question: settings.question,
         kktix_ticketFallback: settings.ticketFallback,
-        kktix_reloadDelay:    settings.reloadDelay,
-        kktix_isRunning:  true,
+        kktix_reloadDelay: settings.reloadDelay,
+        kktix_isRunning: true,
         kktix_runningConfig: {
-            buyCount:       settings.buyCount,
-            chooseArea:     settings.chooseArea,
-            memberCode:     settings.memberCode,
-            question:       settings.question,
+            buyCount: settings.buyCount,
+            chooseArea: settings.chooseArea,
+            memberCode: settings.memberCode,
+            question: settings.question,
             ticketFallback: settings.ticketFallback,
-            reloadDelay:    settings.reloadDelay,
+            reloadDelay: settings.reloadDelay,
         },
     });
 
     kktixSetStatus("running", "搶票執行中...");
     kktixStartBtn.disabled = true;
-    kktixStopBtn.disabled  = false;
+    kktixStopBtn.disabled = false;
     kktixAddLog("🚀 開始 KKTIX 搶票流程", "info");
 
     await kktixSendToContent("START", {
-        buyCount:       settings.buyCount,
-        chooseArea:     settings.chooseArea,
-        memberCode:     settings.memberCode,
-        question:       settings.question,
+        buyCount: settings.buyCount,
+        chooseArea: settings.chooseArea,
+        memberCode: settings.memberCode,
+        question: settings.question,
         ticketFallback: settings.ticketFallback,
-        reloadDelay:    settings.reloadDelay,
+        reloadDelay: settings.reloadDelay,
     });
 });
 
@@ -449,7 +450,7 @@ kktixStopBtn.addEventListener("click", async () => {
     chrome.storage.local.set({ kktix_isRunning: false });
     kktixSetStatus("idle", "已停止");
     kktixStartBtn.disabled = false;
-    kktixStopBtn.disabled  = true;
+    kktixStopBtn.disabled = true;
     kktixAddLog("⏹ 使用者手動停止", "warn");
     await kktixSendToContent("STOP");
 });
@@ -458,10 +459,10 @@ kktixSaveBtn.addEventListener("click", () => {
     const settings = kktixBuildSettings();
     chrome.storage.local.set(
         {
-            kktix_buyCount:   settings.buyCount,
+            kktix_buyCount: settings.buyCount,
             kktix_chooseArea: settings.chooseArea,
             kktix_memberCode: settings.memberCode,
-            kktix_question:   settings.question,
+            kktix_question: settings.question,
         },
         () => {
             showToast("KKTIX 基礎設定已儲存", "success");
@@ -475,7 +476,7 @@ kktixSaveBtnLogic.addEventListener("click", () => {
     chrome.storage.local.set(
         {
             kktix_ticketFallback: settings.ticketFallback,
-            kktix_reloadDelay:    settings.reloadDelay,
+            kktix_reloadDelay: settings.reloadDelay,
         },
         () => {
             showToast("KKTIX 執行邏輯已儲存", "success");
@@ -498,18 +499,24 @@ document.getElementById("kktix-fetchTicketsBtn").addEventListener("click", () =>
 function kktixInit() {
     kktixLoadSettings();
 
-    chrome.storage.local.get(["kktix_isRunning"], (result) => {
+    chrome.storage.local.get(["kktix_isRunning", "globalEnabled"], (result) => {
+        const globalEnabled = result.globalEnabled !== false; // 預設為 true
+
         if (result.kktix_isRunning) {
             kktixSetStatus("running", "搶票執行中...");
             kktixStartBtn.disabled = true;
-            kktixStopBtn.disabled  = false;
+            kktixStopBtn.disabled = false;
             kktixAddLog("偵測到 KKTIX 搶票流程仍在執行中", "warn");
-        } else {
+        } else if (globalEnabled) {
             kktixAddLog("KKTIX 助手已載入，請抓取票種後開始搶票", "info");
+        } else {
+            kktixAddLog("⚠️ 腳本注入已停用，請開啟「啟用腳本注入」開關", "warn");
         }
 
-        // 自動抓取票種
-        kktixFetchTickets();
+        // 自動抓取票種（僅在啟用時）
+        if (globalEnabled) {
+            kktixFetchTickets();
+        }
     });
 }
 
@@ -518,28 +525,28 @@ function kktixInit() {
 // ════════════════════════════════════════════════════════════════
 
 // ── Tixcraft DOM 元素引用 ─────────────────────────────────────────
-const tcBuyCountEl          = document.getElementById("tixcraft-buyCount");
-const tcChooseDateEl        = document.getElementById("tixcraft-chooseDate");
-const tcChooseAreaEl        = document.getElementById("tixcraft-chooseArea");
-const tcExcludeAreaEl       = document.getElementById("tixcraft-excludeArea");
-const tcOcrApiUrlSelectEl   = document.getElementById("tixcraft-ocrApiUrlSelect");
-const tcOcrApiUrlCustomEl   = document.getElementById("tixcraft-ocrApiUrlCustom");
-const tcAreaFallbackEl      = document.getElementById("tixcraft-areaFallback");
-const tcDateFallbackEl      = document.getElementById("tixcraft-dateFallback");
-const tcReloadDelayEl       = document.getElementById("tixcraft-reloadDelay");
-const tcTargetUrlEl         = document.getElementById("tixcraft-targetUrl");
-const tcVerifyCodeEl        = document.getElementById("tixcraft-verifyCode");
-const tcStartBtn            = document.getElementById("tixcraft-startBtn");
-const tcStopBtn             = document.getElementById("tixcraft-stopBtn");
-const tcSaveBtn             = document.getElementById("tixcraft-saveBtn");
-const tcSaveBtnLogic        = document.getElementById("tixcraft-saveBtnLogic");
-const tcLogArea             = document.getElementById("tixcraft-logArea");
-const tcStatusDot           = document.getElementById("tixcraft-statusDot");
-const tcStatusText          = document.getElementById("tixcraft-statusText");
-const tcOcrDot              = document.getElementById("tixcraft-ocrDot");
-const tcOcrLabel            = document.getElementById("tixcraft-ocrLabel");
-const tcCheckOcrBtn         = document.getElementById("tixcraft-checkOcrBtn");
-const tcClearLogBtn         = document.getElementById("tixcraft-clearLogBtn");
+const tcBuyCountEl = document.getElementById("tixcraft-buyCount");
+const tcChooseDateEl = document.getElementById("tixcraft-chooseDate");
+const tcChooseAreaEl = document.getElementById("tixcraft-chooseArea");
+const tcExcludeAreaEl = document.getElementById("tixcraft-excludeArea");
+const tcOcrApiUrlSelectEl = document.getElementById("tixcraft-ocrApiUrlSelect");
+const tcOcrApiUrlCustomEl = document.getElementById("tixcraft-ocrApiUrlCustom");
+const tcAreaFallbackEl = document.getElementById("tixcraft-areaFallback");
+const tcDateFallbackEl = document.getElementById("tixcraft-dateFallback");
+const tcReloadDelayEl = document.getElementById("tixcraft-reloadDelay");
+const tcTargetUrlEl = document.getElementById("tixcraft-targetUrl");
+const tcVerifyCodeEl = document.getElementById("tixcraft-verifyCode");
+const tcStartBtn = document.getElementById("tixcraft-startBtn");
+const tcStopBtn = document.getElementById("tixcraft-stopBtn");
+const tcSaveBtn = document.getElementById("tixcraft-saveBtn");
+const tcSaveBtnLogic = document.getElementById("tixcraft-saveBtnLogic");
+const tcLogArea = document.getElementById("tixcraft-logArea");
+const tcStatusDot = document.getElementById("tixcraft-statusDot");
+const tcStatusText = document.getElementById("tixcraft-statusText");
+const tcOcrDot = document.getElementById("tixcraft-ocrDot");
+const tcOcrLabel = document.getElementById("tixcraft-ocrLabel");
+const tcCheckOcrBtn = document.getElementById("tixcraft-checkOcrBtn");
+const tcClearLogBtn = document.getElementById("tixcraft-clearLogBtn");
 
 // 日誌最大保留筆數
 const TC_MAX_LOG_ENTRIES = 300;
@@ -625,7 +632,7 @@ tcOcrApiUrlSelectEl.addEventListener("change", () => {
 
 async function tcCheckOcrServer() {
     const apiUrl = tcGetOcrApiUrl();
-    const healthUrl = apiUrl.replace(/\/ocr$/, "/health");
+    const healthUrl = apiUrl + "/health";
 
     try {
         const res = await fetch(healthUrl, {
@@ -667,32 +674,32 @@ function tcLoadSettings() {
             "tixcraft_verifyCode",
         ],
         (result) => {
-            tcBuyCountEl.value    = result.tixcraft_buyCount ?? 2;
-            tcChooseDateEl.value  = result.tixcraft_chooseDate ?? "";
-            tcChooseAreaEl.value  = result.tixcraft_chooseArea ?? "";
+            tcBuyCountEl.value = result.tixcraft_buyCount ?? 2;
+            tcChooseDateEl.value = result.tixcraft_chooseDate ?? "";
+            tcChooseAreaEl.value = result.tixcraft_chooseArea ?? "";
             tcExcludeAreaEl.value = result.tixcraft_excludeArea ?? "輪椅,身障,身心障礙,Restricted View,燈柱遮蔽,視線不完整";
             tcSetOcrApiUrl(result.tixcraft_ocrApiUrl ?? "http://localhost:5511/ocr");
-            tcAreaFallbackEl.value  = result.tixcraft_areaFallback ?? "refresh";
-            tcDateFallbackEl.value  = result.tixcraft_dateFallback ?? "refresh";
-            tcReloadDelayEl.value   = result.tixcraft_reloadDelay ?? 1;
-            tcTargetUrlEl.value     = result.tixcraft_targetUrl ?? "";
-            tcVerifyCodeEl.value    = result.tixcraft_verifyCode ?? "";
+            tcAreaFallbackEl.value = result.tixcraft_areaFallback ?? "refresh";
+            tcDateFallbackEl.value = result.tixcraft_dateFallback ?? "refresh";
+            tcReloadDelayEl.value = result.tixcraft_reloadDelay ?? 1;
+            tcTargetUrlEl.value = result.tixcraft_targetUrl ?? "";
+            tcVerifyCodeEl.value = result.tixcraft_verifyCode ?? "";
         }
     );
 }
 
 function tcBuildSettings() {
     return {
-        buyCount:     parseInt(tcBuyCountEl.value, 10) || 2,
-        chooseDate:   tcChooseDateEl.value.trim(),
-        chooseArea:   tcChooseAreaEl.value.trim(),
-        excludeArea:  tcExcludeAreaEl.value.trim(),
-        ocrApiUrl:    tcGetOcrApiUrl(),
+        buyCount: parseInt(tcBuyCountEl.value, 10) || 2,
+        chooseDate: tcChooseDateEl.value.trim(),
+        chooseArea: tcChooseAreaEl.value.trim(),
+        excludeArea: tcExcludeAreaEl.value.trim(),
+        ocrApiUrl: tcGetOcrApiUrl(),
         areaFallback: tcAreaFallbackEl.value,
         dateFallback: tcDateFallbackEl.value,
-        reloadDelay:  parseFloat(tcReloadDelayEl.value) || 1,
-        targetUrl:    tcTargetUrlEl.value.trim(),
-        verifyCode:   tcVerifyCodeEl.value.trim(),
+        reloadDelay: parseFloat(tcReloadDelayEl.value) || 1,
+        targetUrl: tcTargetUrlEl.value.trim(),
+        verifyCode: tcVerifyCodeEl.value.trim(),
     };
 }
 
@@ -769,34 +776,34 @@ tcStartBtn.addEventListener("click", async () => {
     const chooseAreaArr = tcParseKeywords(settings.chooseArea);
 
     chrome.storage.local.set({
-        tixcraft_buyCount:    settings.buyCount,
-        tixcraft_chooseDate:  settings.chooseDate,
-        tixcraft_chooseArea:  settings.chooseArea,
+        tixcraft_buyCount: settings.buyCount,
+        tixcraft_chooseDate: settings.chooseDate,
+        tixcraft_chooseArea: settings.chooseArea,
         tixcraft_excludeArea: settings.excludeArea,
-        tixcraft_ocrApiUrl:   settings.ocrApiUrl,
+        tixcraft_ocrApiUrl: settings.ocrApiUrl,
         tixcraft_areaFallback: settings.areaFallback,
         tixcraft_dateFallback: settings.dateFallback,
-        tixcraft_reloadDelay:  settings.reloadDelay,
-        tixcraft_targetUrl:    settings.targetUrl,
-        tixcraft_verifyCode:   settings.verifyCode,
-        tixcraft_isRunning:   true,
+        tixcraft_reloadDelay: settings.reloadDelay,
+        tixcraft_targetUrl: settings.targetUrl,
+        tixcraft_verifyCode: settings.verifyCode,
+        tixcraft_isRunning: true,
         tixcraft_runningConfig: {
-            buyCount:     settings.buyCount,
-            chooseDate:   settings.chooseDate,
-            chooseArea:   settings.chooseArea,
-            excludeArea:  settings.excludeArea,
-            ocrApiUrl:    settings.ocrApiUrl,
+            buyCount: settings.buyCount,
+            chooseDate: settings.chooseDate,
+            chooseArea: settings.chooseArea,
+            excludeArea: settings.excludeArea,
+            ocrApiUrl: settings.ocrApiUrl,
             areaFallback: settings.areaFallback,
             dateFallback: settings.dateFallback,
-            reloadDelay:  settings.reloadDelay,
-            targetUrl:    settings.targetUrl,
-            verifyCode:   settings.verifyCode,
+            reloadDelay: settings.reloadDelay,
+            targetUrl: settings.targetUrl,
+            verifyCode: settings.verifyCode,
         },
     });
 
     tcSetStatus("running", "搶票執行中...");
     tcStartBtn.disabled = true;
-    tcStopBtn.disabled  = false;
+    tcStopBtn.disabled = false;
     tcAddLog("🚀 開始 Tixcraft 搶票流程", "info");
 
     if (settings.targetUrl) tcAddLog(`目標網址：${settings.targetUrl}`, "info");
@@ -818,16 +825,16 @@ tcStartBtn.addEventListener("click", async () => {
     }
 
     await tcSendToContent("START", {
-        buyCount:     settings.buyCount,
-        chooseDate:   chooseDateArr,
-        chooseArea:   chooseAreaArr,
-        excludeArea:  settings.excludeArea,
-        ocrApiUrl:    settings.ocrApiUrl,
+        buyCount: settings.buyCount,
+        chooseDate: chooseDateArr,
+        chooseArea: chooseAreaArr,
+        excludeArea: settings.excludeArea,
+        ocrApiUrl: settings.ocrApiUrl,
         areaFallback: settings.areaFallback,
         dateFallback: settings.dateFallback,
-        reloadDelay:  settings.reloadDelay,
-        targetUrl:    settings.targetUrl,
-        verifyCode:   settings.verifyCode,
+        reloadDelay: settings.reloadDelay,
+        targetUrl: settings.targetUrl,
+        verifyCode: settings.verifyCode,
     });
 });
 
@@ -835,7 +842,7 @@ tcStopBtn.addEventListener("click", async () => {
     chrome.storage.local.set({ tixcraft_isRunning: false });
     tcSetStatus("idle", "已停止");
     tcStartBtn.disabled = false;
-    tcStopBtn.disabled  = true;
+    tcStopBtn.disabled = true;
     tcAddLog("⏹ 使用者手動停止", "warn");
     await tcSendToContent("STOP");
 });
@@ -844,13 +851,13 @@ tcSaveBtn.addEventListener("click", () => {
     const settings = tcBuildSettings();
     chrome.storage.local.set(
         {
-            tixcraft_buyCount:    settings.buyCount,
-            tixcraft_chooseDate:  settings.chooseDate,
-            tixcraft_chooseArea:  settings.chooseArea,
+            tixcraft_buyCount: settings.buyCount,
+            tixcraft_chooseDate: settings.chooseDate,
+            tixcraft_chooseArea: settings.chooseArea,
             tixcraft_excludeArea: settings.excludeArea,
-            tixcraft_ocrApiUrl:   settings.ocrApiUrl,
-            tixcraft_targetUrl:   settings.targetUrl,
-            tixcraft_verifyCode:  settings.verifyCode,
+            tixcraft_ocrApiUrl: settings.ocrApiUrl,
+            tixcraft_targetUrl: settings.targetUrl,
+            tixcraft_verifyCode: settings.verifyCode,
         },
         () => {
             showToast("Tixcraft 基礎設定已儲存", "success");
@@ -865,7 +872,7 @@ tcSaveBtnLogic.addEventListener("click", () => {
         {
             tixcraft_areaFallback: settings.areaFallback,
             tixcraft_dateFallback: settings.dateFallback,
-            tixcraft_reloadDelay:  settings.reloadDelay,
+            tixcraft_reloadDelay: settings.reloadDelay,
         },
         () => {
             showToast("Tixcraft 執行邏輯已儲存", "success");
@@ -892,7 +899,7 @@ async function tcInit() {
     tcLoadSettings();
 
     chrome.storage.local.get(
-        ["tixcraft_isRunning", "tixcraft_savedLogs", "tixcraft_ocrVerifiedAt"],
+        ["tixcraft_isRunning", "tixcraft_savedLogs", "tixcraft_ocrVerifiedAt", "globalEnabled"],
         async (result) => {
             // 還原歷史日誌
             (result.tixcraft_savedLogs ?? []).forEach(({ time, message, type }) => {
@@ -912,13 +919,17 @@ async function tcInit() {
             }
 
             // 恢復執行狀態
+            const globalEnabled = result.globalEnabled !== false; // 預設為 true
+
             if (result.tixcraft_isRunning) {
                 tcSetStatus("running", "搶票執行中...");
                 tcStartBtn.disabled = true;
-                tcStopBtn.disabled  = false;
+                tcStopBtn.disabled = false;
                 tcAddLog("偵測到 Tixcraft 搶票流程仍在執行中", "warn");
-            } else {
+            } else if (globalEnabled) {
                 tcAddLog("Tixcraft 助手已載入，請設定場次日期與區域關鍵字後開始搶票", "info");
+            } else {
+                tcAddLog("⚠️ 腳本注入已停用，請開啟「啟用腳本注入」開關", "warn");
             }
         }
     );
@@ -939,7 +950,7 @@ chrome.runtime.onMessage.addListener((msg) => {
                 chrome.storage.local.set({ kktix_isRunning: false });
                 kktixSetStatus("idle", "流程完成");
                 kktixStartBtn.disabled = false;
-                kktixStopBtn.disabled  = true;
+                kktixStopBtn.disabled = true;
                 kktixAddLog("🎉 KKTIX 所有步驟完成！", "success");
                 break;
             case "RELOAD":
@@ -963,7 +974,7 @@ chrome.runtime.onMessage.addListener((msg) => {
                 chrome.storage.local.set({ tixcraft_isRunning: false });
                 tcSetStatus("idle", "流程完成");
                 tcStartBtn.disabled = false;
-                tcStopBtn.disabled  = true;
+                tcStopBtn.disabled = true;
                 tcAddLog("🎉 Tixcraft 所有步驟完成！", "success");
                 break;
             case "RELOAD":
@@ -977,8 +988,612 @@ chrome.runtime.onMessage.addListener((msg) => {
                 break;
         }
     }
+
+    // ── Momoshop 訊息 ─────────────────────────────────────────
+    if (msg.from === "momoshop-content") {
+        switch (msg.event) {
+            case "LOG":
+                momoshopAddLog(msg.text, msg.type ?? "info");
+                break;
+            case "DONE":
+                chrome.storage.local.set({ momoshop_isRunning: false });
+                momoshopSetStatus("idle", "流程完成");
+                momoshopStartBtn.disabled = false;
+                momoshopStopBtn.disabled = true;
+                momoshopAddLog("🎉 Momoshop 所有步驟完成！", "success");
+                break;
+            case "RELOAD":
+                momoshopAddLog("🔄 Momoshop 頁面重新整理中...", "warn");
+                break;
+            case "ERROR":
+                momoshopSetStatus("error", "發生錯誤");
+                momoshopAddLog(`❌ ${msg.text}`, "error");
+                break;
+        }
+    }
 });
 
 // ── 啟動初始化 ────────────────────────────────────────────────────
 kktixInit();
 tcInit();
+
+// ── Momoshop 子 Tab 切換 ────────────────────────────────────────────
+document.querySelectorAll("#panel-momoshop .tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+        const tabId = btn.dataset.tab;
+
+        document.querySelectorAll("#panel-momoshop .tab-btn").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll("#panel-momoshop .tab-panel").forEach(p => p.classList.remove("active"));
+
+        btn.classList.add("active");
+        document.getElementById(tabId).classList.add("active");
+    });
+});
+
+// ── Momoshop 初始化及邏輯 ────────────────────────────────────────────────
+// DOM 元素引用
+const momoshopBuyCountEl = document.getElementById("momoshop-buyCount");
+const momoshopNameEl = document.getElementById("momoshop-name");
+const momoshopPhoneEl = document.getElementById("momoshop-phone");
+const momoshopAddressEl = document.getElementById("momoshop-address");
+const momoshopStartBtn = document.getElementById("momoshop-startBtn");
+const momoshopStopBtn = document.getElementById("momoshop-stopBtn");
+const momoshopSaveBtn = document.getElementById("momoshop-saveBtn");
+const momoshopSaveBtnLogic = document.getElementById("momoshop-saveBtnLogic");
+const momoshopLogArea = document.getElementById("momoshop-logArea");
+const momoshopStatusDot = document.getElementById("momoshop-statusDot");
+const momoshopStatusText = document.getElementById("momoshop-statusText");
+const momoshopClearLogBtn = document.getElementById("momoshop-clearLogBtn");
+
+function momoshopAddLog(message, type = "info") {
+    const entry = document.createElement("div");
+    entry.className = `log-entry ${type}`;
+    const now = new Date().toLocaleTimeString("zh-TW");
+    entry.textContent = `[${now}] ${message}`;
+    momoshopLogArea.appendChild(entry);
+    momoshopLogArea.scrollTop = momoshopLogArea.scrollHeight;
+}
+
+function momoshopSetStatus(state, text) {
+    momoshopStatusDot.className = `status-dot ${state}`;
+    momoshopStatusText.textContent = text;
+}
+
+function momoshopBuildSettings() {
+    return {
+        buyCount: parseInt(momoshopBuyCountEl.value, 10) || 1,
+        name: momoshopNameEl.value.trim(),
+        phone: momoshopPhoneEl.value.trim(),
+        address: momoshopAddressEl.value.trim()
+    };
+}
+
+function momoshopLoadSettings() {
+    chrome.storage.local.get([
+        "momoshop_buyCount",
+        "momoshop_name",
+        "momoshop_phone",
+        "momoshop_address",
+        "globalEnabled"
+    ], (result) => {
+        momoshopBuyCountEl.value = result.momoshop_buyCount ?? 1;
+        momoshopNameEl.value = result.momoshop_name ?? "";
+        momoshopPhoneEl.value = result.momoshop_phone ?? "";
+        momoshopAddressEl.value = result.momoshop_address ?? "";
+        const globalEnabled = result.globalEnabled !== false;
+        if (result.momoshop_isRunning) {
+            momoshopSetStatus("running", "Momoshop 流程執行中...");
+            momoshopStartBtn.disabled = true;
+            momoshopStopBtn.disabled = false;
+            momoshopAddLog("偵測到 Momoshop 流程仍在執行中", "warn");
+        } else if (globalEnabled) {
+            momoshopAddLog("Momoshop 助手已載入", "info");
+        } else {
+            momoshopAddLog("⚠️ 腳本注入已停用，請開啟「啟用腳本注入」開關", "warn");
+        }
+    });
+}
+
+async function momoshopGetActiveTabId() {
+    return new Promise((resolve) => {
+        chrome.tabs.query({ url: ["https://www.momoshop.com.tw/*"] }, (tabs) => {
+            if (tabs && tabs.length > 0) {
+                const activeTab = tabs.find(t => t.active) ?? tabs[tabs.length - 1];
+                resolve(activeTab.id);
+            } else {
+                resolve(null);
+            }
+        });
+    });
+}
+
+async function momoshopSendToContent(action, data = {}) {
+    const tabId = await momoshopGetActiveTabId();
+    if (!tabId) {
+        momoshopAddLog("❌ 找不到 Momoshop 分頁，請先開啟 www.momoshop.com.tw", "error");
+        return;
+    }
+    try {
+        await chrome.scripting.executeScript({ target: { tabId }, files: ["shared.js", "momoshop/momoshop-content.js"] });
+    } catch (err) {
+        momoshopAddLog(`⚠️ 注入腳本失敗：${err.message}`, "warn");
+    }
+    await new Promise(resolve => setTimeout(resolve, 300));
+    chrome.tabs.sendMessage(tabId, { action, ...data }, (response) => {
+        if (chrome.runtime.lastError) {
+            momoshopAddLog(`⚠️ 通訊錯誤：${chrome.runtime.lastError.message}`, "warn");
+            return;
+        }
+        if (response?.log) momoshopAddLog(response.log, response.type ?? "info");
+        if (response?.event === "DONE") {
+            chrome.storage.local.set({ momoshop_isRunning: false });
+            momoshopSetStatus("idle", "已完成");
+            momoshopStartBtn.disabled = false;
+            momoshopStopBtn.disabled = true;
+            momoshopAddLog("✅ Momoshop 流程已完成", "success");
+        }
+    });
+}
+
+momoshopSaveBtn.addEventListener("click", () => {
+    const s = momoshopBuildSettings();
+    chrome.storage.local.set({
+        momoshop_buyCount: s.buyCount,
+        momoshop_name: s.name,
+        momoshop_phone: s.phone,
+        momoshop_address: s.address
+    }, () => {
+        showToast("Momoshop 設定已儲存", "success");
+        momoshopAddLog("✅ Momoshop 設定已儲存", "success");
+    });
+});
+
+momoshopSaveBtnLogic.addEventListener("click", () => {
+    const reloadDelay = parseFloat(document.getElementById("momoshop-reloadDelay").value) || 1;
+    chrome.storage.local.set({
+        momoshop_reloadDelay: reloadDelay
+    }, () => {
+        showToast("Momoshop 進階設定已儲存", "success");
+        momoshopAddLog("✅ Momoshop 進階設定已儲存", "success");
+    });
+});
+
+momoshopStartBtn.addEventListener("click", async () => {
+    const settings = momoshopBuildSettings();
+    if (!settings.buyCount || settings.buyCount < 1) {
+        momoshopAddLog("❌ 購買數量必須大於 0", "error");
+        showToast("請填寫購買數量", "error");
+        return;
+    }
+    if (!settings.name || !settings.phone) {
+        momoshopAddLog("❌ 必須填寫姓名與電話", "error");
+        showToast("請填寫姓名與電話", "error");
+        return;
+    }
+    chrome.storage.local.set({
+        momoshop_isRunning: true,
+        momoshop_runningConfig: settings
+    });
+    momoshopSetStatus("running", "Momoshop 流程執行中...");
+    momoshopStartBtn.disabled = true;
+    momoshopStopBtn.disabled = false;
+    await momoshopSendToContent("START", settings);
+});
+
+momoshopStopBtn.addEventListener("click", async () => {
+    chrome.storage.local.set({ momoshop_isRunning: false });
+    momoshopSetStatus("idle", "已停止");
+    momoshopStartBtn.disabled = false;
+    momoshopStopBtn.disabled = true;
+    momoshopAddLog("⏹ 使用者手動停止 Momoshop", "warn");
+    await momoshopSendToContent("STOP");
+});
+
+momoshopClearLogBtn.addEventListener("click", () => {
+    momoshopLogArea.innerHTML = "";
+    chrome.storage.local.remove("momoshop_savedLogs");
+});
+
+// 初始載入 Momoshop 設定
+momoshopLoadSettings();
+
+// ════════════════════════════════════════════════════════════════
+//  Inline 邏輯（自動填到最後確認訂位前，不自動送出）
+// ════════════════════════════════════════════════════════════════
+
+document.querySelectorAll("#panel-inline .tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+        const tabId = btn.dataset.tab;
+        document.querySelectorAll("#panel-inline .tab-btn").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll("#panel-inline .tab-panel").forEach(p => p.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById(tabId).classList.add("active");
+    });
+});
+
+const inTargetUrlEl = document.getElementById("inline-targetUrl");
+const inAdultCountEl = document.getElementById("inline-adultCount");
+const inKidCountEl = document.getElementById("inline-kidCount");
+const inPriorityPlanEl = document.getElementById("inline-priorityPlan");
+const inExactDateEl = document.getElementById("inline-exactDate");
+const inExactTimeEl = document.getElementById("inline-exactTime");
+const inAddExactBtn = document.getElementById("inline-addExactBtn");
+const inExactListEl = document.getElementById("inline-exactList");
+const inRangeDateEl = document.getElementById("inline-rangeDate");
+const inRangeStartEl = document.getElementById("inline-rangeStart");
+const inRangeEndEl = document.getElementById("inline-rangeEnd");
+const inAddRangeBtn = document.getElementById("inline-addRangeBtn");
+const inRangeListEl = document.getElementById("inline-rangeList");
+const inAnyDateEl = document.getElementById("inline-anyDate");
+const inAddAnyBtn = document.getElementById("inline-addAnyBtn");
+const inAnyListEl = document.getElementById("inline-anyList");
+const inReloadOnNoTimeEl = document.getElementById("inline-reloadOnNoTime");
+const inReloadDelayEl = document.getElementById("inline-reloadDelay");
+const inNameEl = document.getElementById("inline-name");
+const inGenderEl = document.getElementById("inline-gender");
+const inPhoneEl = document.getElementById("inline-phone");
+const inEmailEl = document.getElementById("inline-email");
+const inPurposeEl = document.getElementById("inline-purpose");
+const inNoteEl = document.getElementById("inline-note");
+const inAutoAgreeEl = document.getElementById("inline-autoAgree");
+const inStartBtn = document.getElementById("inline-startBtn");
+const inStopBtn = document.getElementById("inline-stopBtn");
+const inSaveBtn = document.getElementById("inline-saveBtn");
+const inSaveContactBtn = document.getElementById("inline-saveContactBtn");
+const inClearLogBtn = document.getElementById("inline-clearLogBtn");
+const inLogArea = document.getElementById("inline-logArea");
+const inStatusDot = document.getElementById("inline-statusDot");
+const inStatusText = document.getElementById("inline-statusText");
+
+const INLINE_MAX_LOG_ENTRIES = 300;
+
+let inPriorityPlanState = { exact: [], range: [], any: [] };
+
+function inPopulateTimeSelects() {
+    const targets = [inExactTimeEl, inRangeStartEl, inRangeEndEl].filter(Boolean);
+    targets.forEach(select => {
+        const current = select.value;
+        select.innerHTML = "";
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "請選擇時間";
+        select.appendChild(placeholder);
+        for (let h = 0; h < 24; h++) {
+            for (let m = 0; m < 60; m += 10) {
+                const value = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+                const opt = document.createElement("option");
+                opt.value = value;
+                opt.textContent = value;
+                select.appendChild(opt);
+            }
+        }
+        if (current) select.value = current;
+    });
+}
+
+function inDateLabel(isoDate) {
+    if (!isoDate) return "";
+    const [y, m, d] = isoDate.split("-").map(Number);
+    if (!y || !m || !d) return isoDate;
+    const w = "日一二三四五六"[new Date(y, m - 1, d).getDay()];
+    return `${m}月${d}日週${w}`;
+}
+
+function inNormalizeTime(t) {
+    if (!t) return "";
+    const [h, m] = String(t).split(":");
+    return `${String(Number(h)).padStart(2, "0")}:${String(Number(m || 0)).padStart(2, "0")}`;
+}
+
+function inSyncPriorityPlanInput() {
+    if (inPriorityPlanEl) inPriorityPlanEl.value = JSON.stringify(inPriorityPlanState);
+}
+
+function inRenderPriorityPlan() {
+    const render = (root, rows, formatter, bucket) => {
+        if (!root) return;
+        root.innerHTML = "";
+        if (!rows.length) {
+            const empty = document.createElement("div");
+            empty.className = "log-entry info";
+            empty.textContent = "尚未設定";
+            root.appendChild(empty);
+            return;
+        }
+        rows.forEach((row, idx) => {
+            const div = document.createElement("div");
+            div.className = "inline-priority-row";
+            const span = document.createElement("span");
+            span.textContent = `${idx + 1}. ${formatter(row)}`;
+            const del = document.createElement("button");
+            del.type = "button";
+            del.textContent = "刪除";
+            del.addEventListener("click", () => {
+                inPriorityPlanState[bucket].splice(idx, 1);
+                inSyncPriorityPlanInput();
+                inRenderPriorityPlan();
+            });
+            div.appendChild(span);
+            div.appendChild(del);
+            root.appendChild(div);
+        });
+    };
+    render(inExactListEl, inPriorityPlanState.exact, r => `${r.dateText} ${r.time}`, "exact");
+    render(inRangeListEl, inPriorityPlanState.range, r => `${r.dateText} ${r.start}-${r.end}`, "range");
+    render(inAnyListEl, inPriorityPlanState.any, r => `${r.dateText} 全部可訂時間`, "any");
+    inSyncPriorityPlanInput();
+}
+
+function inLoadPriorityPlan(raw) {
+    try {
+        const parsed = typeof raw === "string" && raw.trim() ? JSON.parse(raw) : raw;
+        inPriorityPlanState = {
+            exact: Array.isArray(parsed?.exact) ? parsed.exact : [],
+            range: Array.isArray(parsed?.range) ? parsed.range : [],
+            any: Array.isArray(parsed?.any) ? parsed.any : [],
+        };
+    } catch (_) {
+        inPriorityPlanState = { exact: [], range: [], any: [] };
+    }
+    inRenderPriorityPlan();
+}
+
+function inPriorityPlanHasRows(plan = inPriorityPlanState) {
+    return !!(plan?.exact?.length || plan?.range?.length || plan?.any?.length);
+}
+
+
+function inRenderLogEntry(time, message, type) {
+    const entry = document.createElement("div");
+    entry.className = `log-entry ${type}`;
+    entry.textContent = `[${time}] ${message}`;
+    inLogArea.appendChild(entry);
+    inLogArea.scrollTop = inLogArea.scrollHeight;
+}
+
+function inAddLog(message, type = "info") {
+    const now = new Date().toLocaleTimeString("zh-TW");
+    inRenderLogEntry(now, message, type);
+    chrome.storage.local.get(["inline_savedLogs"], (result) => {
+        const logs = result.inline_savedLogs ?? [];
+        logs.push({ time: now, message, type });
+        if (logs.length > INLINE_MAX_LOG_ENTRIES) logs.splice(0, logs.length - INLINE_MAX_LOG_ENTRIES);
+        chrome.storage.local.set({ inline_savedLogs: logs });
+    });
+}
+
+function inSetStatus(state, text) {
+    inStatusDot.className = `status-dot ${state}`;
+    inStatusText.textContent = text;
+}
+
+function inParseKeywords(raw) {
+    return String(raw || "").split(",").map(s => s.trim()).filter(Boolean);
+}
+
+function inBuildSettings() {
+    return {
+        targetUrl: inTargetUrlEl.value.trim(),
+        adultCount: parseInt(inAdultCountEl.value, 10) || 1,
+        kidCount: inKidCountEl.value.trim(),
+        priorityPlan: JSON.parse(JSON.stringify(inPriorityPlanState)),
+        reloadOnNoTime: inReloadOnNoTimeEl.value === "true",
+        reloadDelay: parseFloat(inReloadDelayEl.value) || 2,
+        name: inNameEl.value.trim(),
+        gender: inGenderEl.value,
+        phone: inPhoneEl.value.trim(),
+        email: inEmailEl.value.trim(),
+        purpose: inPurposeEl.value.trim(),
+        purposes: inParseKeywords(inPurposeEl.value),
+        note: inNoteEl.value.trim(),
+        autoAgree: inAutoAgreeEl.value === "true",
+    };
+}
+
+function inLoadSettings() {
+    chrome.storage.local.get([
+        "inline_targetUrl", "inline_adultCount", "inline_kidCount", "inline_priorityPlan",
+        "inline_reloadOnNoTime", "inline_reloadDelay", "inline_name", "inline_gender", "inline_phone",
+        "inline_email", "inline_purpose", "inline_note", "inline_autoAgree", "inline_isRunning", "inline_savedLogs", "globalEnabled"
+    ], (r) => {
+        inTargetUrlEl.value = r.inline_targetUrl ?? "";
+        inAdultCountEl.value = r.inline_adultCount ?? 2;
+        inKidCountEl.value = r.inline_kidCount ?? "";
+        inLoadPriorityPlan(r.inline_priorityPlan ?? "");
+        inReloadOnNoTimeEl.value = String(r.inline_reloadOnNoTime ?? true);
+        inReloadDelayEl.value = r.inline_reloadDelay ?? 1;
+        inNameEl.value = r.inline_name ?? "";
+        inGenderEl.value = r.inline_gender ?? "先生";
+        inPhoneEl.value = r.inline_phone ?? "";
+        inEmailEl.value = r.inline_email ?? "";
+        inPurposeEl.value = r.inline_purpose ?? "";
+        inNoteEl.value = r.inline_note ?? "";
+        inAutoAgreeEl.value = String(r.inline_autoAgree ?? true);
+
+        (r.inline_savedLogs ?? []).forEach(({ time, message, type }) => inRenderLogEntry(time, message, type));
+
+        const globalEnabled = r.globalEnabled !== false; // 預設為 true
+
+        if (r.inline_isRunning) {
+            inSetStatus("running", "Inline 流程執行中...");
+            inStartBtn.disabled = true;
+            inStopBtn.disabled = false;
+            inAddLog("偵測到 Inline 流程仍在執行中", "warn");
+        } else if (globalEnabled) {
+            inAddLog("Inline 助手已載入", "info");
+        } else {
+            inAddLog("⚠️ 腳本注入已停用，請開啟「啟用腳本注入」開關", "warn");
+        }
+    });
+}
+
+async function inGetActiveTabId(targetUrl = "") {
+    return new Promise(resolve => {
+        chrome.tabs.query({ url: ["https://inline.app/*", "https://*.inline.app/*"] }, (tabs) => {
+            if (tabs && tabs.length > 0) {
+                const activeTab = tabs.find(t => t.active) ?? tabs[tabs.length - 1];
+                resolve(activeTab.id);
+                return;
+            }
+            resolve(null);
+        });
+    });
+}
+
+async function inSendToContent(action, data = {}) {
+    let tabId = await inGetActiveTabId(data.targetUrl);
+
+    if (!tabId && data.targetUrl) {
+        const tab = await chrome.tabs.create({ url: data.targetUrl, active: true });
+        tabId = tab.id;
+        await new Promise(resolve => setTimeout(resolve, 1200));
+    }
+
+    if (!tabId) {
+        inAddLog("❌ 找不到 Inline 分頁，請先開啟 inline.app 訂位頁", "error");
+        return;
+    }
+
+    try {
+        await chrome.scripting.executeScript({ target: { tabId }, files: ["inline/inline-content.js"] });
+    } catch (err) {
+        inAddLog(`⚠️ 注入 Inline 腳本失敗：${err.message}`, "warn");
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    chrome.tabs.sendMessage(tabId, { action, ...data }, (response) => {
+        if (chrome.runtime.lastError) {
+            inAddLog(`⚠️ Inline 通訊錯誤：${chrome.runtime.lastError.message}`, "warn");
+            inAddLog("請確認已在 Inline 訂位頁，並重新整理後再試", "info");
+            return;
+        }
+        if (response?.log) inAddLog(response.log, response.type ?? "info");
+    });
+}
+
+function inSaveSettings(show = true) {
+    const s = inBuildSettings();
+    chrome.storage.local.set({
+        inline_targetUrl: s.targetUrl,
+        inline_adultCount: s.adultCount,
+        inline_kidCount: s.kidCount,
+        inline_priorityPlan: JSON.stringify(s.priorityPlan),
+        inline_reloadOnNoTime: s.reloadOnNoTime,
+        inline_reloadDelay: s.reloadDelay,
+        inline_name: s.name,
+        inline_gender: s.gender,
+        inline_phone: s.phone,
+        inline_email: s.email,
+        inline_purpose: s.purpose,
+        inline_note: s.note,
+        inline_autoAgree: s.autoAgree,
+    }, () => {
+        if (show) {
+            showToast("Inline 設定已儲存", "success");
+            inAddLog("✅ Inline 設定已儲存", "success");
+        }
+    });
+}
+
+
+inAddExactBtn?.addEventListener("click", () => {
+    const date = inExactDateEl.value;
+    const time = inNormalizeTime(inExactTimeEl.value);
+    if (!date || !time) { inAddLog("❌ 第一順位請選日期與時間", "error"); return; }
+    inPriorityPlanState.exact.push({ date, dateText: inDateLabel(date), time });
+    inRenderPriorityPlan();
+});
+
+inAddRangeBtn?.addEventListener("click", () => {
+    const date = inRangeDateEl.value;
+    const start = inNormalizeTime(inRangeStartEl.value);
+    const end = inNormalizeTime(inRangeEndEl.value);
+    if (!date || !start || !end) { inAddLog("❌ 第二順位請選日期、開始時間與結束時間", "error"); return; }
+    if (start > end) { inAddLog("❌ 第二順位開始時間不可晚於結束時間", "error"); return; }
+    inPriorityPlanState.range.push({ date, dateText: inDateLabel(date), start, end });
+    inRenderPriorityPlan();
+});
+
+inAddAnyBtn?.addEventListener("click", () => {
+    const date = inAnyDateEl.value;
+    if (!date) { inAddLog("❌ 第三順位請選日期", "error"); return; }
+    inPriorityPlanState.any.push({ date, dateText: inDateLabel(date) });
+    inRenderPriorityPlan();
+});
+
+inSaveBtn.addEventListener("click", () => inSaveSettings(true));
+inSaveContactBtn.addEventListener("click", () => inSaveSettings(true));
+
+inStartBtn.addEventListener("click", async () => {
+    const s = inBuildSettings();
+    if (!s.targetUrl && !(await inGetActiveTabId())) {
+        inAddLog("❌ 請填 Inline 訂位網址，或先開啟 Inline 分頁", "error");
+        showToast("請填 Inline 訂位網址", "error");
+        return;
+    }
+    if (!s.adultCount || s.adultCount < 1) {
+        inAddLog("❌ 大人人數必須大於 0", "error");
+        return;
+    }
+    if (!inPriorityPlanHasRows(s.priorityPlan)) {
+        inAddLog("❌ 請至少設定一筆三段式順位", "error");
+        return;
+    }
+    if (!s.name || !s.phone) {
+        inAddLog("❌ 請填訂位人姓名與手機號碼", "error");
+        showToast("請填姓名與手機", "error");
+        return;
+    }
+
+    inSaveSettings(false);
+    // 不在注入前預先寫入 inline_isRunning，避免 content script auto-resume 與手動 START 同時啟動。
+    // START 送達 content script 後，content script 會自行寫入 inline_isRunning / inline_runningConfig。
+    chrome.storage.local.remove(["inline_successReloadCount"]);
+
+    inSetStatus("running", "Inline 流程執行中...");
+    inStartBtn.disabled = true;
+    inStopBtn.disabled = false;
+    await inSendToContent("START", s);
+});
+
+inStopBtn.addEventListener("click", async () => {
+    chrome.storage.local.set({ inline_isRunning: false });
+    inSetStatus("idle", "已停止");
+    inStartBtn.disabled = false;
+    inStopBtn.disabled = true;
+    inAddLog("⏹ 使用者手動停止 Inline", "warn");
+    await inSendToContent("STOP");
+});
+
+inClearLogBtn.addEventListener("click", () => {
+    inLogArea.innerHTML = "";
+    chrome.storage.local.remove("inline_savedLogs");
+});
+
+chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.from !== "inline-content") return;
+    switch (msg.event) {
+        case "LOG":
+            inAddLog(msg.text, msg.type ?? "info");
+            break;
+        case "DONE":
+            chrome.storage.local.set({ inline_isRunning: false });
+            inSetStatus("idle", "訂位完成");
+            inStartBtn.disabled = false;
+            inStopBtn.disabled = true;
+            inAddLog("Inline 訂位完成", "success");
+            showToast("Inline 訂位完成", "success", 4000);
+            break;
+        case "RELOAD":
+            inAddLog("🔄 Inline 頁面重新整理中...", "warn");
+            break;
+        case "ERROR":
+            inSetStatus("error", "Inline 發生錯誤");
+            inAddLog(`❌ ${msg.text}`, "error");
+            break;
+    }
+});
+
+inPopulateTimeSelects();
+inLoadSettings();

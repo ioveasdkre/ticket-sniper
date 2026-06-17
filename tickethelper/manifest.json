@@ -1,26 +1,31 @@
 {
   "manifest_version": 3,
   "name": "搶票助手 Pro",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "KKTIX 與 Tixcraft 整合自動搶票工具，支援區域選擇、數量設定、驗證碼辨識與自動流程執行",
   "permissions": [
     "storage",
     "activeTab",
     "scripting",
     "tabs",
-    "windows"
+    "sidePanel"
   ],
   "host_permissions": [
     "https://kktix.com/*",
     "https://*.kktix.com/*",
     "https://tixcraft.com/*",
     "https://*.tixcraft.com/*",
+    "https://inline.app/*",
+    "https://*.inline.app/*",
     "http://localhost:*/*",
     "https://localhost:*/*",
-        "https://www.momoshop.com.tw/*"
+    "https://*.momoshop.com.tw/*"
   ],
   "action": {
     "default_title": "搶票助手 Pro"
+  },
+  "side_panel": {
+    "default_path": "popup.html"
   },
   "content_scripts": [
     {
@@ -28,7 +33,9 @@
         "https://tixcraft.com/*",
         "https://*.tixcraft.com/*"
       ],
-      "js": ["tixcraft/tixcraft-alert-override.js"],
+      "js": [
+        "tixcraft/tixcraft-alert-override.js"
+      ],
       "run_at": "document_start",
       "world": "MAIN",
       "all_frames": true
@@ -38,7 +45,10 @@
         "https://tixcraft.com/*",
         "https://*.tixcraft.com/*"
       ],
-      "js": ["tixcraft/tixcraft-content.js"],
+      "js": [
+        "shared.js",
+        "tixcraft/tixcraft-content.js"
+      ],
       "run_at": "document_start",
       "all_frames": true
     },
@@ -47,14 +57,31 @@
         "https://kktix.com/*",
         "https://*.kktix.com/*"
       ],
-      "js": ["kktix/kktix-content.js"],
-      "run_at": "document_idle",
+      "js": [
+        "shared.js",
+        "kktix/kktix-content.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://inline.app/*",
+        "https://*.inline.app/*"
+      ],
+      "js": [
+        "shared.js",
+        "inline/inline-content.js"
+      ],
+      "run_at": "document_idle"
     },
     {
       "matches": [
         "https://www.momoshop.com.tw/*"
       ],
-      "js": ["momoshop/momoshop-alert-override.js"],
+      "js": [
+        "shared.js",
+        "momoshop/momoshop-alert-override.js"
+      ],
       "run_at": "document_start",
       "world": "MAIN",
       "all_frames": true
@@ -63,7 +90,10 @@
       "matches": [
         "https://www.momoshop.com.tw/*"
       ],
-      "js": ["momoshop/momoshop-content.js"],
+      "js": [
+        "shared.js",
+        "momoshop/momoshop-content.js"
+      ],
       "run_at": "document_start",
       "all_frames": true
     }
