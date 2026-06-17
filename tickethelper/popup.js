@@ -27,7 +27,32 @@
 // 側邊欄主控台：管理設定、啟動流程與顯示平台日誌。
 
 const toastEl = document.getElementById("toast");
+const themeToggleBtn = document.getElementById("themeToggleBtn");
 let toastTimeout = null;
+
+function setPopupTheme(theme) {
+    const nextTheme = theme === "light" ? "light" : "dark";
+    document.documentElement.dataset.theme = nextTheme;
+    document.body.dataset.theme = nextTheme;
+    if (themeToggleBtn) {
+        themeToggleBtn.textContent = nextTheme === "light" ? "暗色" : "亮色";
+        themeToggleBtn.title = nextTheme === "light" ? "切換為暗色模式" : "切換為亮色模式";
+    }
+    chrome.storage.local.set({ popup_theme: nextTheme });
+}
+
+function loadPopupTheme() {
+    chrome.storage.local.get(["popup_theme"], (result) => {
+        setPopupTheme(result.popup_theme ?? "dark");
+    });
+}
+
+themeToggleBtn?.addEventListener("click", () => {
+    const current = document.documentElement.dataset.theme === "light" ? "light" : "dark";
+    setPopupTheme(current === "light" ? "dark" : "light");
+});
+
+loadPopupTheme();
 
 /**
  * 顯示 Toast 通知
@@ -184,50 +209,34 @@ function popupSetRunningState(prefix, isRunning, runningConfig = null) {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  平台切換
+//  平台工作台切換
 // ═══════════════════════════════════════════════════════════
 
-// ── 平台切換 ─────────────────────────────────────────────────────
-document.querySelectorAll(".platform-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-        const platform = btn.dataset.platform;
+function showPlatformHome() {
+    document.getElementById("platform-home")?.classList.add("active");
+    document.querySelectorAll(".platform-workspace").forEach(workspace => {
+        workspace.classList.remove("active");
+    });
+}
 
-        // 切換按鈕 active 狀態
-        document.querySelectorAll(".platform-btn").forEach(b => b.classList.remove("active"));
-        btn.classList.add("active");
+function showPlatformWorkspace(platform) {
+    document.getElementById("platform-home")?.classList.remove("active");
+    document.querySelectorAll(".platform-workspace").forEach(workspace => {
+        workspace.classList.toggle("active", workspace.dataset.platform === platform);
+    });
+}
 
-        // 切換面板顯示
-        document.querySelectorAll(".platform-panel").forEach(p => p.classList.remove("active"));
-        const panel = document.getElementById(`panel-${platform}`);
-            if (panel) panel.classList.add("active");
+document.querySelectorAll(".platform-card").forEach(card => {
+    card.addEventListener("click", () => {
+        showPlatformWorkspace(card.dataset.platform);
     });
 });
 
-// ── KKTIX 子 Tab 切換 ────────────────────────────────────────────
-document.querySelectorAll("#panel-kktix .tab-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-        const tabId = btn.dataset.tab;
-
-        document.querySelectorAll("#panel-kktix .tab-btn").forEach(b => b.classList.remove("active"));
-        document.querySelectorAll("#panel-kktix .tab-panel").forEach(p => p.classList.remove("active"));
-
-        btn.classList.add("active");
-        document.getElementById(tabId).classList.add("active");
-    });
+document.querySelectorAll(".workspace-back").forEach(button => {
+    button.addEventListener("click", showPlatformHome);
 });
 
-// ── Tixcraft 子 Tab 切換 ─────────────────────────────────────────
-document.querySelectorAll("#panel-tixcraft .tab-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-        const tabId = btn.dataset.tab;
-
-        document.querySelectorAll("#panel-tixcraft .tab-btn").forEach(b => b.classList.remove("active"));
-        document.querySelectorAll("#panel-tixcraft .tab-panel").forEach(p => p.classList.remove("active"));
-
-        btn.classList.add("active");
-        document.getElementById(tabId).classList.add("active");
-    });
-});
+showPlatformHome();
 
 // ════════════════════════════════════════════════════════════════
 //  KKTIX 邏輯
@@ -999,10 +1008,620 @@ async function tcInit() {
 }
 
 // ════════════════════════════════════════════════════════════════
+//  Momoshop 邏輯
+// ════════════════════════════════════════════════════════════════
+
+const momoReloadDelayEl = document.getElementById("momoshop-reloadDelay");
+const momoReceiverNameEl = document.getElementById("momoshop-receiverName");
+const momoReceiverPhoneEl = document.getElementById("momoshop-receiverPhone");
+const momoReceiverCityEl = document.getElementById("momoshop-receiverCity");
+const momoReceiverPostEl = document.getElementById("momoshop-receiverPost");
+const momoReceiverAddrEl = document.getElementById("momoshop-receiverAddr");
+const momoPaymentMethodEl = document.getElementById("momoshop-paymentMethod");
+const momoMobilePaymentMethodEl = document.getElementById("momoshop-mobilePaymentMethod");
+const momoStartBtn = document.getElementById("momoshop-startBtn");
+const momoRefreshTabsBtn = document.getElementById("momoshop-refreshTabsBtn");
+const momoFetchSpecsBtn = document.getElementById("momoshop-fetchSpecsBtn");
+const momoSaveBtn = document.getElementById("momoshop-saveBtn");
+const momoSaveReceiverBtn = document.getElementById("momoshop-saveReceiverBtn");
+const momoClearLogBtn = document.getElementById("momoshop-clearLogBtn");
+const momoLogArea = document.getElementById("momoshop-logArea");
+const momoStatusDot = document.getElementById("momoshop-statusDot");
+const momoStatusText = document.getElementById("momoshop-statusText");
+const momoTabSessionList = document.getElementById("momoshop-tabSessionList");
+const momoSpecSelectionPanel = document.getElementById("momoshop-specSelectionPanel");
+const momoStopAllTabsBtn = document.getElementById("momoshop-stopAllTabsBtn");
+
+const MOMO_MAX_LOG_ENTRIES = 300;
+const MOMO_MAX_RUNNING_TABS = 6;
+const MOMO_PRODUCT_URL_PATTERNS = ["https://www.momoshop.com.tw/product/*"];
+const MOMO_FLOW_URL_PATTERNS = [
+    "https://www.momoshop.com.tw/product/*",
+    "https://cart.momoshop.com.tw/*",
+];
+
+function momoRenderLogEntry(time, message, type) {
+    const entry = document.createElement("div");
+    entry.className = `log-entry ${type}`;
+    entry.textContent = `[${time}] ${message}`;
+    momoLogArea.appendChild(entry);
+    momoLogArea.scrollTop = momoLogArea.scrollHeight;
+}
+
+function momoAddLog(message, type = "info") {
+    const now = new Date().toLocaleTimeString("zh-TW");
+    momoRenderLogEntry(now, message, type);
+    chrome.storage.local.get(["momoshop_savedLogs"], (result) => {
+        const logs = result.momoshop_savedLogs ?? [];
+        logs.push({ time: now, message, type });
+        if (logs.length > MOMO_MAX_LOG_ENTRIES) {
+            logs.splice(0, logs.length - MOMO_MAX_LOG_ENTRIES);
+        }
+        chrome.storage.local.set({ momoshop_savedLogs: logs });
+    });
+}
+
+function momoSetStatus(state, text) {
+    momoStatusDot.className = `status-dot ${state}`;
+    momoStatusText.textContent = text;
+}
+
+function momoBuildSettings() {
+    return {
+        reloadDelay: parseFloat(momoReloadDelayEl.value) || 1,
+        receiverName: momoReceiverNameEl.value.trim(),
+        receiverPhone: momoReceiverPhoneEl.value.replace(/\D/g, ""),
+        receiverCity: momoReceiverCityEl.value.trim(),
+        receiverPost: momoReceiverPostEl.value.trim(),
+        receiverAddr: momoReceiverAddrEl.value.trim(),
+        paymentMethod: momoPaymentMethodEl.value || "MPAY_ID",
+        mobilePaymentMethod: momoMobilePaymentMethodEl.value || "Linepay_ID",
+        autoSubmit: true,
+    };
+}
+
+function momoLoadSettings() {
+    chrome.storage.local.get(
+        [
+            "momoshop_targetUrl", "momoshop_reloadDelay", "momoshop_receiverName",
+            "momoshop_receiverPhone", "momoshop_receiverCity", "momoshop_receiverPost",
+            "momoshop_receiverAddr", "momoshop_paymentMethod", "momoshop_mobilePaymentMethod",
+        ],
+        (result) => {
+            momoReloadDelayEl.value = result.momoshop_reloadDelay ?? 1;
+            momoReceiverNameEl.value = result.momoshop_receiverName ?? "";
+            momoReceiverPhoneEl.value = result.momoshop_receiverPhone ?? "";
+            momoReceiverCityEl.value = result.momoshop_receiverCity ?? "";
+            momoReceiverPostEl.value = result.momoshop_receiverPost ?? "";
+            momoReceiverAddrEl.value = result.momoshop_receiverAddr ?? "";
+            momoPaymentMethodEl.value = result.momoshop_paymentMethod ?? "MPAY_ID";
+            momoMobilePaymentMethodEl.value = result.momoshop_mobilePaymentMethod ?? "Linepay_ID";
+        }
+    );
+}
+
+function momoSettingsToStorage(settings) {
+    return {
+        momoshop_reloadDelay: settings.reloadDelay,
+        momoshop_receiverName: settings.receiverName,
+        momoshop_receiverPhone: settings.receiverPhone,
+        momoshop_receiverCity: settings.receiverCity,
+        momoshop_receiverPost: settings.receiverPost,
+        momoshop_receiverAddr: settings.receiverAddr,
+        momoshop_paymentMethod: settings.paymentMethod,
+        momoshop_mobilePaymentMethod: settings.mobilePaymentMethod,
+    };
+}
+
+function momoStorageGet(keys) {
+    return new Promise(resolve => chrome.storage.local.get(keys, resolve));
+}
+
+async function momoGetTabSessions() {
+    const result = await momoStorageGet(["momoshop_tabSessions"]);
+    return result.momoshop_tabSessions ?? {};
+}
+
+async function momoGetSelectedSpecs() {
+    const result = await momoStorageGet(["momoshop_selectedSpecs"]);
+    return result.momoshop_selectedSpecs ?? {};
+}
+
+async function momoSetSelectedSpecs(selectedSpecs) {
+    await popupStorageSet({ momoshop_selectedSpecs: selectedSpecs });
+}
+
+async function momoSetTabSessions(sessions) {
+    await popupStorageSet({ momoshop_tabSessions: sessions });
+}
+
+async function momoPatchTabSession(tabId, patch) {
+    const sessions = await momoGetTabSessions();
+    const key = String(tabId);
+    sessions[key] = {
+        ...(sessions[key] ?? {}),
+        ...patch,
+        updatedAt: Date.now(),
+    };
+    await momoSetTabSessions(sessions);
+    await momoRenderTabSessions();
+    await momoRenderSpecSelectionPanel();
+}
+
+async function momoRefreshPopupPanels() {
+    await momoRenderTabSessions();
+    await momoRenderSpecSelectionPanel();
+    await momoUpdateOverallStatus();
+}
+
+function momoQueryTabs(urlPatterns) {
+    return new Promise(resolve => {
+        chrome.tabs.query({ url: urlPatterns }, tabs => resolve(tabs ?? []));
+    });
+}
+
+function momoSortTabs(tabs) {
+    return [...tabs].sort((a, b) => {
+        if (a.active !== b.active) return a.active ? -1 : 1;
+        if (a.currentWindow !== b.currentWindow) return a.currentWindow ? -1 : 1;
+        if ((a.windowId ?? 0) !== (b.windowId ?? 0)) return (a.windowId ?? 0) - (b.windowId ?? 0);
+        return (a.index ?? 0) - (b.index ?? 0);
+    });
+}
+
+async function momoGetProductTabs() {
+    return momoSortTabs(await momoQueryTabs(MOMO_PRODUCT_URL_PATTERNS));
+}
+
+async function momoGetFlowTabs() {
+    return momoSortTabs(await momoQueryTabs(MOMO_FLOW_URL_PATTERNS));
+}
+
+async function momoInjectFiles(tabId) {
+    try {
+        await chrome.scripting.executeScript({
+            target: { tabId },
+            files: ["momoshop/momoshop-alert-override.js"],
+            world: "MAIN",
+        });
+    } catch (error) {
+        momoAddLog(`⚠️ 注入 momo dialog hook 失敗：${error.message}`, "warn");
+    }
+
+    await popupInjectFiles(tabId, ["shared.js", "momoshop/momoshop-content.js"], (error) => {
+        momoAddLog(`⚠️ 注入 momo 腳本失敗：${error.message}`, "warn");
+    });
+}
+
+async function momoSendToTab(tabId, action, data = {}) {
+    await momoInjectFiles(tabId);
+    await popupDelay(300);
+
+    popupSendMessage(
+        tabId,
+        { action, ...data },
+        (response) => {
+            if (response?.log) {
+                const text = `#${tabId} ${response.log}`;
+                momoAddLog(text, response.type ?? "info");
+                momoPatchTabSession(tabId, { lastLog: response.log, status: response.type ?? "info" });
+            }
+        },
+        (runtimeError) => {
+            momoAddLog(`⚠️ #${tabId} Momoshop 通訊錯誤：${runtimeError.message}`, "warn");
+            momoPatchTabSession(tabId, {
+                running: false,
+                status: action === "STOP" ? "stopped" : "error",
+                lastLog: action === "STOP" ? "STOP 已送出，分頁可能已關閉" : runtimeError.message,
+            });
+        }
+    );
+}
+
+function momoSendMessageToTab(tabId, payload) {
+    return new Promise((resolve, reject) => {
+        chrome.tabs.sendMessage(tabId, payload, (response) => {
+            if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+                return;
+            }
+            resolve(response);
+        });
+    });
+}
+
+async function momoFetchSpecsForTab(tab) {
+    await momoInjectFiles(tab.id);
+    await popupDelay(200);
+    const response = await momoSendMessageToTab(tab.id, { action: "GET_SPECS" });
+    return {
+        hasSpecSelect: response?.hasSpecSelect === true,
+        specs: response?.specs ?? [],
+        url: response?.url ?? tab.url,
+        title: response?.title ?? tab.title,
+    };
+}
+
+async function momoRefreshSpecsForTabs(tabs) {
+    const sessions = await momoGetTabSessions();
+    const selectedSpecs = await momoGetSelectedSpecs();
+
+    for (const tab of tabs) {
+        try {
+            const data = await momoFetchSpecsForTab(tab);
+            sessions[String(tab.id)] = {
+                ...(sessions[String(tab.id)] ?? {}),
+                running: sessions[String(tab.id)]?.running ?? false,
+                status: sessions[String(tab.id)]?.status ?? "idle",
+                url: tab.url,
+                title: tab.title || data.title,
+                hasSpecSelect: data.hasSpecSelect,
+                specs: data.specs,
+                selectedSpec: selectedSpecs[String(tab.id)] ?? sessions[String(tab.id)]?.selectedSpec ?? null,
+                lastLog: data.hasSpecSelect
+                    ? `已抓到 ${data.specs.length} 個規格，請選擇要購買的規格`
+                    : "此商品不需要選擇規格",
+                updatedAt: Date.now(),
+            };
+            momoAddLog(`#${tab.id} ${sessions[String(tab.id)].lastLog}`, data.hasSpecSelect ? "info" : "success");
+        } catch (error) {
+            sessions[String(tab.id)] = {
+                ...(sessions[String(tab.id)] ?? {}),
+                running: false,
+                status: "error",
+                url: tab.url,
+                title: tab.title,
+                lastLog: `抓取規格失敗：${error.message}`,
+                updatedAt: Date.now(),
+            };
+            momoAddLog(`⚠️ #${tab.id} 抓取規格失敗：${error.message}`, "warn");
+        }
+    }
+
+    await momoSetTabSessions(sessions);
+    await momoRenderTabSessions();
+    await momoRenderSpecSelectionPanel();
+    return sessions;
+}
+
+function momoSaveSettings(show = true) {
+    const settings = momoBuildSettings();
+    chrome.storage.local.set(momoSettingsToStorage(settings), () => {
+        if (show) {
+            showToast("Momoshop 設定已儲存", "success");
+            momoAddLog("✅ Momoshop 設定已儲存", "success");
+        }
+    });
+}
+
+async function momoValidateSettings(settings) {
+    if (!settings.receiverName) return "請填收件人姓名";
+    if (settings.receiverPhone.length !== 10) return "手機號碼需為 10 碼";
+    if (!settings.receiverCity) return "請填縣市";
+    if (!settings.receiverPost) return "請填鄉鎮市區";
+    if (!settings.receiverAddr) return "請填詳細地址";
+    return "";
+}
+
+function momoSessionStatusText(session) {
+    if (!session) return "待機";
+    if (session.status === "done") return "完成";
+    if (session.status === "error") return "錯誤";
+    if (session.running) return "執行中";
+    return "已停止";
+}
+
+function momoSessionStatusClass(session) {
+    if (!session) return "";
+    if (session.status === "done") return "done";
+    if (session.status === "error") return "error";
+    if (session.running) return "running";
+    return "";
+}
+
+async function momoSelectSpec(tabId, spec) {
+    const selectedSpecs = await momoGetSelectedSpecs();
+    selectedSpecs[String(tabId)] = spec;
+    await momoSetSelectedSpecs(selectedSpecs);
+    await momoPatchTabSession(tabId, {
+        selectedSpec: spec,
+        lastLog: `已選擇規格：${spec.text}`,
+    });
+    momoAddLog(`#${tabId} 已選擇規格：${spec.text}`, "success");
+    await momoRenderSpecSelectionPanel();
+}
+
+async function momoRenderSpecSelectionPanel() {
+    const [tabs, sessions, selectedSpecs] = await Promise.all([
+        momoGetProductTabs(),
+        momoGetTabSessions(),
+        momoGetSelectedSpecs(),
+    ]);
+
+    if (!momoSpecSelectionPanel) return;
+    momoSpecSelectionPanel.innerHTML = "";
+
+    const specTabs = tabs.filter(tab => sessions[String(tab.id)]?.hasSpecSelect);
+    if (specTabs.length === 0) {
+        momoSpecSelectionPanel.innerHTML = "<div class='ticket-placeholder'>抓取商品規格後，會在這裡選擇每個商品分頁要購買的規格</div>";
+        return;
+    }
+
+    specTabs.forEach(tab => {
+        const session = sessions[String(tab.id)];
+        const group = document.createElement("div");
+        group.className = "momoshop-spec-group";
+
+        const title = document.createElement("div");
+        title.className = "momoshop-spec-group-title";
+        title.textContent = `#${tab.id} ${tab.title || session?.title || tab.url || "momo 商品"}`;
+
+        const meta = document.createElement("div");
+        meta.className = "momoshop-spec-group-meta";
+        meta.textContent = tab.url || session?.url || "";
+
+        const specList = document.createElement("div");
+        specList.className = "momoshop-spec-list";
+        const selectedSpec = selectedSpecs[String(tab.id)] ?? session?.selectedSpec ?? null;
+
+        if (Array.isArray(session?.specs) && session.specs.length > 0) {
+            session.specs.forEach(spec => {
+                const specButton = document.createElement("button");
+                specButton.type = "button";
+                specButton.className = "momoshop-spec-btn";
+                if (selectedSpec?.index === spec.index && selectedSpec?.text === spec.text) {
+                    specButton.classList.add("selected");
+                }
+                specButton.disabled = spec.disabled;
+                specButton.textContent = spec.text;
+                specButton.title = spec.text;
+                specButton.addEventListener("click", () => momoSelectSpec(tab.id, {
+                    index: spec.index,
+                    text: spec.text,
+                }));
+                specList.appendChild(specButton);
+            });
+        } else {
+            const empty = document.createElement("div");
+            empty.className = "momoshop-spec-group-meta";
+            empty.textContent = "未抓到可選規格";
+            specList.appendChild(empty);
+        }
+
+        group.appendChild(title);
+        group.appendChild(meta);
+        group.appendChild(specList);
+        momoSpecSelectionPanel.appendChild(group);
+    });
+}
+
+async function momoRenderTabSessions() {
+    const [tabs, sessions] = await Promise.all([momoGetFlowTabs(), momoGetTabSessions()]);
+    momoTabSessionList.innerHTML = "";
+    const hasRunningSession = Object.values(sessions).some(session => session?.running);
+    if (momoStopAllTabsBtn) {
+        momoStopAllTabsBtn.disabled = !hasRunningSession;
+    }
+
+    if (tabs.length === 0) {
+        momoTabSessionList.innerHTML = "<div class='ticket-placeholder'>尚未偵測到 momo 商品分頁</div>";
+        return;
+    }
+
+    tabs.forEach(tab => {
+        const session = sessions[String(tab.id)];
+        const row = document.createElement("div");
+        row.className = "momoshop-tab-row";
+
+        const main = document.createElement("div");
+        main.className = "momoshop-tab-main";
+
+        const title = document.createElement("div");
+        title.className = "momoshop-tab-title";
+        title.textContent = tab.title || session?.title || tab.url || `Tab ${tab.id}`;
+
+        const meta = document.createElement("div");
+        meta.className = "momoshop-tab-meta";
+        meta.textContent = `#${tab.id} ${tab.url || session?.url || ""}`;
+
+        const status = document.createElement("div");
+        status.className = `momoshop-tab-status ${momoSessionStatusClass(session)}`;
+        status.textContent = momoSessionStatusText(session);
+
+        const lastLog = document.createElement("div");
+        lastLog.className = "momoshop-tab-log";
+        lastLog.textContent = session?.lastLog ? `最後訊息：${session.lastLog}` : "尚未啟動";
+
+        main.appendChild(title);
+        main.appendChild(meta);
+        main.appendChild(status);
+        main.appendChild(lastLog);
+
+        const stopButton = document.createElement("button");
+        stopButton.type = "button";
+        stopButton.className = "momoshop-tab-stop";
+        stopButton.textContent = "停止";
+        stopButton.disabled = !session?.running;
+        stopButton.addEventListener("click", () => momoStopTab(tab.id));
+
+        row.appendChild(main);
+        row.appendChild(stopButton);
+        momoTabSessionList.appendChild(row);
+    });
+}
+
+async function momoUpdateOverallStatus() {
+    const sessions = await momoGetTabSessions();
+    const runningCount = Object.values(sessions).filter(session => session?.running).length;
+    if (runningCount > 0) {
+        momoSetStatus("running", `${runningCount} 個 momo 分頁執行中`);
+        return;
+    }
+    momoSetStatus("idle", "待機中");
+}
+
+async function momoStopTab(tabId) {
+    await momoPatchTabSession(tabId, {
+        running: false,
+        status: "stopped",
+        lastLog: "使用者手動停止此分頁",
+    });
+    momoAddLog(`⏹ 已停止 Momoshop 分頁 #${tabId}`, "warn");
+    await momoSendToTab(tabId, "STOP");
+    await momoUpdateOverallStatus();
+}
+
+async function momoStopAllTabs() {
+    const sessions = await momoGetTabSessions();
+    const runningTabIds = Object.entries(sessions)
+        .filter(([, session]) => session?.running)
+        .map(([tabId]) => Number(tabId))
+        .filter(tabId => Number.isFinite(tabId));
+
+    if (runningTabIds.length === 0) {
+        momoAddLog("目前沒有執行中的 Momoshop 商品分頁", "info");
+        return;
+    }
+
+    runningTabIds.forEach(tabId => {
+        const key = String(tabId);
+        sessions[key] = {
+            ...sessions[key],
+            running: false,
+            status: "stopped",
+            lastLog: "使用者停止所有商品分頁",
+            updatedAt: Date.now(),
+        };
+    });
+    await momoSetTabSessions(sessions);
+    await momoRefreshPopupPanels();
+
+    momoAddLog(`⏹ 已停止 ${runningTabIds.length} 個 Momoshop 商品分頁`, "warn");
+    for (const tabId of runningTabIds) {
+        await momoSendToTab(tabId, "STOP");
+    }
+}
+
+momoSaveBtn.addEventListener("click", () => momoSaveSettings(true));
+momoSaveReceiverBtn.addEventListener("click", () => momoSaveSettings(true));
+momoRefreshTabsBtn.addEventListener("click", () => momoRefreshPopupPanels());
+momoStopAllTabsBtn.addEventListener("click", () => momoStopAllTabs());
+momoFetchSpecsBtn.addEventListener("click", async () => {
+    const tabs = await momoGetProductTabs();
+    if (tabs.length === 0) {
+        momoAddLog("❌ 找不到已開啟的 momo 商品分頁，請先手動開啟商品頁", "error");
+        showToast("找不到 momo 商品分頁", "error");
+        return;
+    }
+    const targetTabs = tabs.slice(0, MOMO_MAX_RUNNING_TABS);
+    if (tabs.length > MOMO_MAX_RUNNING_TABS) {
+        momoAddLog(`⚠️ 偵測到 ${tabs.length} 個商品分頁，僅抓取前 ${MOMO_MAX_RUNNING_TABS} 個`, "warn");
+    }
+    await momoRefreshSpecsForTabs(targetTabs);
+});
+
+momoStartBtn.addEventListener("click", async () => {
+    const settings = momoBuildSettings();
+    const validationMessage = await momoValidateSettings(settings);
+    if (validationMessage) {
+        momoAddLog(`❌ ${validationMessage}`, "error");
+        showToast(validationMessage, "error");
+        return;
+    }
+
+    const tabs = await momoGetProductTabs();
+    if (tabs.length === 0) {
+        momoAddLog("❌ 找不到已開啟的 momo 商品分頁，請先手動開啟商品頁", "error");
+        showToast("找不到 momo 商品分頁", "error");
+        return;
+    }
+
+    const targetTabs = tabs.slice(0, MOMO_MAX_RUNNING_TABS);
+    if (tabs.length > MOMO_MAX_RUNNING_TABS) {
+        momoAddLog(`⚠️ 偵測到 ${tabs.length} 個商品分頁，僅啟動前 ${MOMO_MAX_RUNNING_TABS} 個`, "warn");
+    }
+
+    await popupStorageSet(momoSettingsToStorage(settings));
+    const refreshedSessions = await momoRefreshSpecsForTabs(targetTabs);
+    const selectedSpecs = await momoGetSelectedSpecs();
+
+    const missingSpecTabs = targetTabs.filter(tab => {
+        const session = refreshedSessions[String(tab.id)];
+        return session?.hasSpecSelect && !selectedSpecs[String(tab.id)];
+    });
+
+    if (missingSpecTabs.length > 0) {
+        momoAddLog(`❌ 有 ${missingSpecTabs.length} 個商品需要先選擇規格`, "error");
+        showToast("請先選擇商品規格", "error");
+        return;
+    }
+
+    const sessions = await momoGetTabSessions();
+    targetTabs.forEach(tab => {
+        const selectedSpec = selectedSpecs[String(tab.id)] ?? null;
+        sessions[String(tab.id)] = {
+            ...(sessions[String(tab.id)] ?? {}),
+            running: true,
+            status: "running",
+            url: tab.url,
+            title: tab.title,
+            selectedSpec,
+            config: { ...settings, targetUrl: tab.url, selectedSpec },
+            lastLog: "等待 START 回應",
+            updatedAt: Date.now(),
+        };
+    });
+    await momoSetTabSessions(sessions);
+
+    momoSetStatus("running", `${targetTabs.length} 個 momo 分頁執行中`);
+    momoAddLog(`🚀 啟動 ${targetTabs.length} 個 Momoshop 商品分頁`, "info");
+    momoAddLog(`付款方式：${settings.paymentMethod} / ${settings.mobilePaymentMethod}`, "info");
+
+    await momoRenderTabSessions();
+    for (const tab of targetTabs) {
+        await momoSendToTab(tab.id, "START", {
+            ...settings,
+            targetUrl: tab.url,
+            selectedSpec: selectedSpecs[String(tab.id)] ?? null,
+        });
+    }
+    await momoUpdateOverallStatus();
+});
+
+momoClearLogBtn.addEventListener("click", () => {
+    momoLogArea.innerHTML = "";
+    chrome.storage.local.remove("momoshop_savedLogs");
+});
+
+function momoInit() {
+    momoLoadSettings();
+
+    chrome.storage.local.get(["momoshop_tabSessions", "momoshop_savedLogs", "globalEnabled"], (result) => {
+        (result.momoshop_savedLogs ?? []).forEach(({ time, message, type }) => {
+            momoRenderLogEntry(time, message, type);
+        });
+
+        const globalEnabled = result.globalEnabled !== false;
+        const runningCount = Object.values(result.momoshop_tabSessions ?? {}).filter(session => session?.running).length;
+        if (runningCount > 0) {
+            momoSetStatus("running", `${runningCount} 個 momo 分頁執行中`);
+            momoAddLog(`偵測到 ${runningCount} 個 Momoshop 分頁仍在執行中`, "warn");
+        } else if (globalEnabled) {
+            momoAddLog("Momoshop 助手已載入，請設定商品與收件資料後開始", "info");
+        } else {
+            momoAddLog("⚠️ 腳本注入已停用，請開啟「啟用腳本注入」開關", "warn");
+        }
+
+        momoRenderTabSessions();
+        momoRenderSpecSelectionPanel();
+    });
+}
+
+// ════════════════════════════════════════════════════════════════
 //  監聽來自 Content Script 的主動訊息
 // ════════════════════════════════════════════════════════════════
 
-chrome.runtime.onMessage.addListener((msg) => {
+chrome.runtime.onMessage.addListener((msg, sender) => {
     // ── KKTIX 訊息 ────────────────────────────────────────────
     if (msg.from === "kktix-content") {
         switch (msg.event) {
@@ -1050,28 +1669,44 @@ chrome.runtime.onMessage.addListener((msg) => {
                 tcAddLog(`❌ ${msg.text}`, "error");
                 break;
         }
+        return;
     }
 
     // ── Momoshop 訊息 ─────────────────────────────────────────
     if (msg.from === "momoshop-content") {
+        const tabId = sender?.tab?.id;
+        const sessionPatch = {};
+
         switch (msg.event) {
             case "LOG":
-                momoshopAddLog(msg.text, msg.type ?? "info");
+                momoAddLog(tabId ? `#${tabId} ${msg.text}` : msg.text, msg.type ?? "info");
+                if (tabId) {
+                    sessionPatch.lastLog = msg.text;
+                    if (msg.type === "error") sessionPatch.status = "error";
+                }
                 break;
             case "DONE":
-                chrome.storage.local.set({ momoshop_isRunning: false });
-                momoshopSetStatus("idle", "流程完成");
-                momoshopStartBtn.disabled = false;
-                momoshopStopBtn.disabled = true;
-                momoshopAddLog("🎉 Momoshop 所有步驟完成！", "success");
+                sessionPatch.running = false;
+                sessionPatch.status = "done";
+                sessionPatch.lastLog = "Momoshop 流程完成";
+                momoAddLog(tabId ? `🎉 Momoshop 分頁 #${tabId} 流程完成！` : "🎉 Momoshop 流程完成！", "success");
+                showToast("Momoshop 分頁流程完成", "success", 4000);
                 break;
             case "RELOAD":
-                momoshopAddLog("🔄 Momoshop 頁面重新整理中...", "warn");
+                sessionPatch.status = "running";
+                sessionPatch.lastLog = "頁面重新整理中";
+                momoAddLog(tabId ? `🔄 Momoshop 分頁 #${tabId} 頁面重新整理中...` : "🔄 Momoshop 頁面重新整理中...", "warn");
                 break;
             case "ERROR":
-                momoshopSetStatus("error", "發生錯誤");
-                momoshopAddLog(`❌ ${msg.text}`, "error");
+                sessionPatch.running = false;
+                sessionPatch.status = "error";
+                sessionPatch.lastLog = msg.text ?? "發生錯誤";
+                momoAddLog(tabId ? `❌ #${tabId} ${msg.text}` : `❌ ${msg.text}`, "error");
                 break;
+        }
+
+        if (tabId && Object.keys(sessionPatch).length > 0) {
+            momoPatchTabSession(tabId, sessionPatch).then(() => momoUpdateOverallStatus());
         }
     }
 });
@@ -1079,200 +1714,11 @@ chrome.runtime.onMessage.addListener((msg) => {
 // ── 啟動初始化 ────────────────────────────────────────────────────
 kktixInit();
 tcInit();
-
-// ── Momoshop 子 Tab 切換 ────────────────────────────────────────────
-document.querySelectorAll("#panel-momoshop .tab-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-        const tabId = btn.dataset.tab;
-
-        document.querySelectorAll("#panel-momoshop .tab-btn").forEach(b => b.classList.remove("active"));
-        document.querySelectorAll("#panel-momoshop .tab-panel").forEach(p => p.classList.remove("active"));
-
-        btn.classList.add("active");
-        document.getElementById(tabId).classList.add("active");
-    });
-});
-
-// ── Momoshop 初始化及邏輯 ────────────────────────────────────────────────
-// DOM 元素引用
-const momoshopBuyCountEl = document.getElementById("momoshop-buyCount");
-const momoshopNameEl = document.getElementById("momoshop-name");
-const momoshopPhoneEl = document.getElementById("momoshop-phone");
-const momoshopAddressEl = document.getElementById("momoshop-address");
-const momoshopStartBtn = document.getElementById("momoshop-startBtn");
-const momoshopStopBtn = document.getElementById("momoshop-stopBtn");
-const momoshopSaveBtn = document.getElementById("momoshop-saveBtn");
-const momoshopSaveBtnLogic = document.getElementById("momoshop-saveBtnLogic");
-const momoshopLogArea = document.getElementById("momoshop-logArea");
-const momoshopStatusDot = document.getElementById("momoshop-statusDot");
-const momoshopStatusText = document.getElementById("momoshop-statusText");
-const momoshopClearLogBtn = document.getElementById("momoshop-clearLogBtn");
-
-function momoshopAddLog(message, type = "info") {
-    const entry = document.createElement("div");
-    entry.className = `log-entry ${type}`;
-    const now = new Date().toLocaleTimeString("zh-TW");
-    entry.textContent = `[${now}] ${message}`;
-    momoshopLogArea.appendChild(entry);
-    momoshopLogArea.scrollTop = momoshopLogArea.scrollHeight;
-}
-
-function momoshopSetStatus(state, text) {
-    momoshopStatusDot.className = `status-dot ${state}`;
-    momoshopStatusText.textContent = text;
-}
-
-function momoshopBuildSettings() {
-    return {
-        buyCount: parseInt(momoshopBuyCountEl.value, 10) || 1,
-        name: momoshopNameEl.value.trim(),
-        phone: momoshopPhoneEl.value.trim(),
-        address: momoshopAddressEl.value.trim()
-    };
-}
-
-function momoshopLoadSettings() {
-    chrome.storage.local.get([
-        "momoshop_buyCount",
-        "momoshop_name",
-        "momoshop_phone",
-        "momoshop_address",
-        "globalEnabled"
-    ], (result) => {
-        momoshopBuyCountEl.value = result.momoshop_buyCount ?? 1;
-        momoshopNameEl.value = result.momoshop_name ?? "";
-        momoshopPhoneEl.value = result.momoshop_phone ?? "";
-        momoshopAddressEl.value = result.momoshop_address ?? "";
-        const globalEnabled = result.globalEnabled !== false;
-        if (result.momoshop_isRunning) {
-            momoshopSetStatus("running", "Momoshop 流程執行中...");
-            momoshopStartBtn.disabled = true;
-            momoshopStopBtn.disabled = false;
-            momoshopAddLog("偵測到 Momoshop 流程仍在執行中", "warn");
-        } else if (globalEnabled) {
-            momoshopAddLog("Momoshop 助手已載入", "info");
-        } else {
-            momoshopAddLog("⚠️ 腳本注入已停用，請開啟「啟用腳本注入」開關", "warn");
-        }
-    });
-}
-
-async function momoshopGetActiveTabId() {
-    return new Promise((resolve) => {
-        chrome.tabs.query({ url: ["https://www.momoshop.com.tw/*"] }, (tabs) => {
-            if (tabs && tabs.length > 0) {
-                const activeTab = tabs.find(t => t.active) ?? tabs[tabs.length - 1];
-                resolve(activeTab.id);
-            } else {
-                resolve(null);
-            }
-        });
-    });
-}
-
-async function momoshopSendToContent(action, data = {}) {
-    const tabId = await momoshopGetActiveTabId();
-    if (!tabId) {
-        momoshopAddLog("❌ 找不到 Momoshop 分頁，請先開啟 www.momoshop.com.tw", "error");
-        return;
-    }
-    try {
-        await chrome.scripting.executeScript({ target: { tabId }, files: ["shared.js", "momoshop/momoshop-content.js"] });
-    } catch (err) {
-        momoshopAddLog(`⚠️ 注入腳本失敗：${err.message}`, "warn");
-    }
-    await new Promise(resolve => setTimeout(resolve, 300));
-    chrome.tabs.sendMessage(tabId, { action, ...data }, (response) => {
-        if (chrome.runtime.lastError) {
-            momoshopAddLog(`⚠️ 通訊錯誤：${chrome.runtime.lastError.message}`, "warn");
-            return;
-        }
-        if (response?.log) momoshopAddLog(response.log, response.type ?? "info");
-        if (response?.event === "DONE") {
-            chrome.storage.local.set({ momoshop_isRunning: false });
-            momoshopSetStatus("idle", "已完成");
-            momoshopStartBtn.disabled = false;
-            momoshopStopBtn.disabled = true;
-            momoshopAddLog("✅ Momoshop 流程已完成", "success");
-        }
-    });
-}
-
-momoshopSaveBtn.addEventListener("click", () => {
-    const s = momoshopBuildSettings();
-    chrome.storage.local.set({
-        momoshop_buyCount: s.buyCount,
-        momoshop_name: s.name,
-        momoshop_phone: s.phone,
-        momoshop_address: s.address
-    }, () => {
-        showToast("Momoshop 設定已儲存", "success");
-        momoshopAddLog("✅ Momoshop 設定已儲存", "success");
-    });
-});
-
-momoshopSaveBtnLogic.addEventListener("click", () => {
-    const reloadDelay = parseFloat(document.getElementById("momoshop-reloadDelay").value) || 1;
-    chrome.storage.local.set({
-        momoshop_reloadDelay: reloadDelay
-    }, () => {
-        showToast("Momoshop 進階設定已儲存", "success");
-        momoshopAddLog("✅ Momoshop 進階設定已儲存", "success");
-    });
-});
-
-momoshopStartBtn.addEventListener("click", async () => {
-    const settings = momoshopBuildSettings();
-    if (!settings.buyCount || settings.buyCount < 1) {
-        momoshopAddLog("❌ 購買數量必須大於 0", "error");
-        showToast("請填寫購買數量", "error");
-        return;
-    }
-    if (!settings.name || !settings.phone) {
-        momoshopAddLog("❌ 必須填寫姓名與電話", "error");
-        showToast("請填寫姓名與電話", "error");
-        return;
-    }
-    chrome.storage.local.set({
-        momoshop_isRunning: true,
-        momoshop_runningConfig: settings
-    });
-    momoshopSetStatus("running", "Momoshop 流程執行中...");
-    momoshopStartBtn.disabled = true;
-    momoshopStopBtn.disabled = false;
-    await momoshopSendToContent("START", settings);
-});
-
-momoshopStopBtn.addEventListener("click", async () => {
-    chrome.storage.local.set({ momoshop_isRunning: false });
-    momoshopSetStatus("idle", "已停止");
-    momoshopStartBtn.disabled = false;
-    momoshopStopBtn.disabled = true;
-    momoshopAddLog("⏹ 使用者手動停止 Momoshop", "warn");
-    await momoshopSendToContent("STOP");
-});
-
-momoshopClearLogBtn.addEventListener("click", () => {
-    momoshopLogArea.innerHTML = "";
-    chrome.storage.local.remove("momoshop_savedLogs");
-});
-
-// 初始載入 Momoshop 設定
-momoshopLoadSettings();
+momoInit();
 
 // ════════════════════════════════════════════════════════════════
 //  Inline 邏輯（自動填到最後確認訂位前，不自動送出）
 // ════════════════════════════════════════════════════════════════
-
-document.querySelectorAll("#panel-inline .tab-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-        const tabId = btn.dataset.tab;
-        document.querySelectorAll("#panel-inline .tab-btn").forEach(b => b.classList.remove("active"));
-        document.querySelectorAll("#panel-inline .tab-panel").forEach(p => p.classList.remove("active"));
-        btn.classList.add("active");
-        document.getElementById(tabId).classList.add("active");
-    });
-});
 
 const inTargetUrlEl = document.getElementById("inline-targetUrl");
 const inAdultCountEl = document.getElementById("inline-adultCount");

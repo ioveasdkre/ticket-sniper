@@ -17,9 +17,10 @@
     "https://*.tixcraft.com/*",
     "https://inline.app/*",
     "https://*.inline.app/*",
+    "https://www.momoshop.com.tw/*",
+    "https://cart.momoshop.com.tw/*",
     "http://localhost:*/*",
-    "https://localhost:*/*",
-    "https://*.momoshop.com.tw/*"
+    "https://localhost:*/*"
   ],
   "action": {
     "default_title": "搶票助手 Pro"
@@ -69,17 +70,16 @@
         "https://*.inline.app/*"
       ],
       "js": [
-        "shared.js",
         "inline/inline-content.js"
       ],
       "run_at": "document_idle"
     },
     {
       "matches": [
-        "https://www.momoshop.com.tw/*"
+        "https://www.momoshop.com.tw/*",
+        "https://cart.momoshop.com.tw/*"
       ],
       "js": [
-        "shared.js",
         "momoshop/momoshop-alert-override.js"
       ],
       "run_at": "document_start",
@@ -88,13 +88,14 @@
     },
     {
       "matches": [
-        "https://www.momoshop.com.tw/*"
+        "https://www.momoshop.com.tw/*",
+        "https://cart.momoshop.com.tw/*"
       ],
       "js": [
         "shared.js",
         "momoshop/momoshop-content.js"
       ],
-      "run_at": "document_start",
+      "run_at": "document_idle",
       "all_frames": true
     }
   ],

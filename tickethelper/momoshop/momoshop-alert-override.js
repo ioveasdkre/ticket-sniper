@@ -1,21 +1,23 @@
 // ============================================================
-// momoshop-alert-override.js — Override alert/confirm on Momoshop pages
-// Injected in the MAIN world (via manifest) to capture native dialogs
-// and forward them as CustomEvents to the isolated content script.
+// momoshop-alert-override.js - Momoshop MAIN world dialog hook
+// ============================================================
+// Native dialogs block content scripts. Forward their messages to
+// the isolated world and auto-confirm so the checkout flow can proceed.
 // ============================================================
 
-const _originalAlert = window.alert;
-const _originalConfirm = window.confirm;
+if (!window.__momoshopDialogPatched) {
+    window.__momoshopDialogPatched = true;
 
-window.alert = function (msg) {
-  window.dispatchEvent(
-    new CustomEvent("__momoshop_alert", { detail: msg ?? "" })
-  );
-};
+    window.alert = function patchedMomoshopAlert(message) {
+        window.dispatchEvent(new CustomEvent("__momoshop_alert", {
+            detail: message ?? "",
+        }));
+    };
 
-window.confirm = function (msg) {
-  window.dispatchEvent(
-    new CustomEvent("__momoshop_confirm", { detail: msg ?? "" })
-  );
-  return true; // auto‑confirm
-};
+    window.confirm = function patchedMomoshopConfirm(message) {
+        window.dispatchEvent(new CustomEvent("__momoshop_confirm", {
+            detail: message ?? "",
+        }));
+        return true;
+    };
+}

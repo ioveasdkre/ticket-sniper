@@ -11,12 +11,8 @@
 // 平台 URL 比對模式
 const KKTIX_PATTERN = /^https:\/\/([a-z0-9-]+\.)?kktix\.com\//;
 const TIXCRAFT_PATTERN = /^https:\/\/([a-z0-9-]+\.)?tixcraft\.com\//;
-<<<<<<< HEAD
-const INLINE_PATTERN = /^https:\/\/([a-z0-9-]+\.)?inline\.app\//;;
-=======
 const INLINE_PATTERN = /^https:\/\/([a-z0-9-]+\.)?inline\.app\//;
-const MOMOSHOP_PATTERN = /^https:\/\/([a-z0-9-]+\.)?momoshop\.com\.tw\//;
->>>>>>> main
+const MOMOSHOP_PATTERN = /^https:\/\/(www|cart)\.momoshop\.com\.tw\//;
 
 /**
  * 平台重新注入規則設定
@@ -76,6 +72,13 @@ const PLATFORM_REINJECTION_RULES = [
     }),
   },
 ];
+
+const MOMOSHOP_REINJECTION_RULE = {
+  key: "momoshop",
+  injectDelayMs: 500,
+  preScripts: [{ files: ["momoshop/momoshop-alert-override.js"], world: "MAIN" }],
+  scripts: ["shared.js", "momoshop/momoshop-content.js"],
+};
 
 /**
  * 擴充功能圖示點擊事件監聴器
@@ -164,6 +167,46 @@ function sendStartMessage(tabId, payload, label) {
   });
 }
 
+function buildMomoshopStartPayload(session) {
+  const cfg = session?.config ?? {};
+  return {
+    action: "START",
+    targetUrl: cfg.targetUrl ?? session?.url ?? "",
+    reloadDelay: cfg.reloadDelay ?? 1,
+    receiverName: cfg.receiverName ?? "",
+    receiverPhone: cfg.receiverPhone ?? "",
+    receiverCity: cfg.receiverCity ?? "",
+    receiverPost: cfg.receiverPost ?? "",
+    receiverAddr: cfg.receiverAddr ?? "",
+    paymentMethod: cfg.paymentMethod ?? "MPAY_ID",
+    mobilePaymentMethod: cfg.mobilePaymentMethod ?? "Linepay_ID",
+    selectedSpec: cfg.selectedSpec ?? session?.selectedSpec ?? null,
+    autoSubmit: cfg.autoSubmit ?? true,
+  };
+}
+
+async function resumeMomoshopTabRun(tabId) {
+  const result = await storageGet(["momoshop_tabSessions"]);
+  const sessions = result.momoshop_tabSessions ?? {};
+  const session = sessions[String(tabId)];
+
+  if (!session?.running || !session.config) {
+    return;
+  }
+
+  console.log(`[tickethelper] Reinjecting momoshop tab ${tabId}`);
+
+  try {
+    await injectPlatformScripts(tabId, MOMOSHOP_REINJECTION_RULE);
+  } catch (error) {
+    console.warn(`[tickethelper] momoshop inject failed:`, error.message);
+    return;
+  }
+
+  await delay(MOMOSHOP_REINJECTION_RULE.injectDelayMs);
+  await sendStartMessage(tabId, buildMomoshopStartPayload(session), "momoshop");
+}
+
 /**
  * 恢復平台流程執行
  * 當分頁重新載入且先前有進行中的流程時，自動恢復執行
@@ -210,13 +253,26 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   const pageUrl = changeInfo.url || tab.url;
   if (!pageUrl) return;
 
+  if (MOMOSHOP_PATTERN.test(pageUrl) && changeInfo.status === "complete") {
+    await resumeMomoshopTabRun(tabId);
+    return;
+  }
+
   // 遍歷所有平台規則，檢查是否符合任何平台的 URL 模式
   for (const rule of PLATFORM_REINJECTION_RULES) {
     if (!rule.pattern.test(pageUrl)) continue;  // URL 不符合，跳過
     if (changeInfo.status !== rule.status) continue;  // 狀態不符合，跳過
     await resumePlatformRun(tabId, rule);  // 嘗試恢復流程
   }
-<<<<<<< HEAD
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  chrome.storage.local.get(["momoshop_tabSessions"], (result) => {
+    const sessions = result.momoshop_tabSessions ?? {};
+    if (!sessions[String(tabId)]) return;
+    delete sessions[String(tabId)];
+    chrome.storage.local.set({ momoshop_tabSessions: sessions });
+  });
 });
 
 /**
@@ -228,122 +284,6 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
  * 2. 背景頁使用 fetch API 傳送圖片給 OCR 服務
  * 3. 將 OCR 結果回傳給內容腳本
  */
-=======
-
-  // ── Tixcraft：頁面開始載入即重注入 ────────────────────────
-  if (TIXCRAFT_PATTERN.test(pageUrl) && changeInfo.status === "loading") {
-    chrome.storage.local.get(["tixcraft_isRunning", "tixcraft_runningConfig"], async (result) => {
-      if (!result.tixcraft_isRunning || !result.tixcraft_runningConfig) return;
-
-      console.log("[搶票助手] 偵測到 Tixcraft 頁面跳轉，立即重新注入腳本...");
-
-      try {
-        await chrome.scripting.executeScript({
-          target: { tabId },
-          files: ["tixcraft/tixcraft-alert-override.js"],
-          world: "MAIN",
-        });
-
-        await chrome.scripting.executeScript({
-          target: { tabId },
-          files: ["shared.js", "tixcraft/tixcraft-content.js"],
-        });
-      } catch (err) {
-        console.warn("[搶票助手] Tixcraft 腳本注入失敗：", err.message);
-        return;
-      }
-
-      // 稍作延遲確保訊息監聽器已登記
-      await new Promise(resolve => setTimeout(resolve, 200));
-
-      const cfg = result.tixcraft_runningConfig;
-      chrome.tabs.sendMessage(
-        tabId,
-        {
-          action: "START",
-          buyCount: cfg.buyCount,
-          chooseDate: Array.isArray(cfg.chooseDate)
-            ? cfg.chooseDate
-            : (cfg.chooseDate ? cfg.chooseDate.split(",").map(s => s.trim()).filter(Boolean) : []),
-          chooseArea: Array.isArray(cfg.chooseArea)
-            ? cfg.chooseArea
-            : (cfg.chooseArea ? cfg.chooseArea.split(",").map(s => s.trim()).filter(Boolean) : []),
-          ocrApiUrl: cfg.ocrApiUrl,
-          areaFallback: cfg.areaFallback ?? "refresh",
-          dateFallback: cfg.dateFallback ?? "refresh",
-          reloadDelay: cfg.reloadDelay ?? 1,
-          targetUrl: cfg.targetUrl ?? "",
-          verifyCode: cfg.verifyCode ?? "",
-        },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            console.warn("[搶票助手] Tixcraft START 失敗：", chrome.runtime.lastError.message);
-            return;
-          }
-          console.log("[搶票助手] Tixcraft 已恢復搶票流程", response);
-        }
-      );
-    });
-  }
-
-   // ── Inline：頁面載入完成後重注入，恢復到最後確認前 ─────────────
-  if (INLINE_PATTERN.test(pageUrl) && changeInfo.status === "complete") {
-    chrome.storage.local.get(["inline_isRunning", "inline_runningConfig"], async (result) => {
-      if (!result.inline_isRunning || !result.inline_runningConfig) return;
-
-      console.log("[搶票助手] 偵測到 Inline 頁面重載，自動重新注入腳本...");
-
-      try {
-        await chrome.scripting.executeScript({
-          target: { tabId },
-          files: ["inline/inline-content.js"],
-        });
-      } catch (err) {
-        console.warn("[搶票助手] Inline 腳本注入失敗：", err.message);
-        return;
-      }
-
-      await new Promise(resolve => setTimeout(resolve, 500));
-      chrome.tabs.sendMessage(tabId, { action: "START", ...result.inline_runningConfig }, (response) => {
-        if (chrome.runtime.lastError) {
-          console.warn("[搶票助手] Inline START 失敗：", chrome.runtime.lastError.message);
-          return;
-        }
-        console.log("[搶票助手] Inline 已恢復流程", response);
-      });
-    });
-  }
-
-  // ── Momoshop：頁面開始載入即重注入 ────────────────────────
-  if (MOMOSHOP_PATTERN.test(pageUrl) && changeInfo.status === "loading") {
-    chrome.storage.local.get(["momoshop_isRunning", "momoshop_runningConfig"], async (result) => {
-      if (!result.momoshop_isRunning || !result.momoshop_runningConfig) return;
-      console.log("[搶票助手] 偵測到 Momoshop 頁面跳轉，立即重新注入腳本...");
-      try {
-        await chrome.scripting.executeScript({
-          target: { tabId },
-          files: ["shared.js", "momoshop/momoshop-content.js"],
-        });
-      } catch (err) {
-        console.warn("[搶票助手] Momoshop 腳本注入失敗:", err.message);
-        return;
-      }
-      await new Promise(resolve => setTimeout(resolve, 200));
-      const cfg = result.momoshop_runningConfig;
-      chrome.tabs.sendMessage(tabId, { action: "START", ...cfg }, (response) => {
-        if (chrome.runtime.lastError) {
-          console.warn("[搶票助手] Momoshop START 失敗:", chrome.runtime.lastError.message);
-          return;
-        }
-        console.log("[搶票助手] Momoshop 已恢復搶票流程", response);
-      });
-    });
-  }
-});
-// ── OCR API 代理（Tixcraft 專用）──────────────────────────────
-// content.js 在 HTTPS 環境無法直接對 http://localhost 發出 fetch，
-// 由 background service worker 代理發出 HTTP 請求後回傳結果。
->>>>>>> main
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.action !== "OCR_REQUEST") return false;
 

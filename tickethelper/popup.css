@@ -5,29 +5,36 @@
 /* ── CSS 自訂屬性 ─────────────────────────────────────────── */
 :root {
   /* 色彩系統 */
-  --bg-base:        #0d0d12;
-  --bg-surface:     #13131c;
-  --bg-elevated:    #1a1a27;
-  --bg-hover:       #20202e;
-  --bg-input:       #16161f;
+  --bg-base:        #101218;
+  --bg-surface:     #1a1d27;
+  --bg-elevated:    #242938;
+  --bg-hover:       #2d3447;
+  --bg-input:       #151923;
+  --bg-log:         #0b0f17;
 
-  --border-subtle:  #1f1f2e;
-  --border-default: #272738;
-  --border-strong:  #33334a;
+  --border-subtle:  #2d3445;
+  --border-default: #3a4357;
+  --border-strong:  #586276;
 
-  --text-primary:   #e8e8f0;
-  --text-secondary: #9090a8;
-  --text-muted:     #50506a;
-  --text-link:      #7eb8ff;
+  --text-primary:   #f4f7fb;
+  --text-secondary: #c8d0dc;
+  --text-muted:     #9aa7b8;
+  --text-link:      #8cc8ff;
+  --placeholder:    #8f9bad;
 
   --accent-primary: #4a5fc0;
   --accent-hover:   #5b70d6;
   --accent-glow:    rgba(74, 95, 192, 0.25);
 
-  --green:   #4caf50;
-  --green-bg: rgba(76, 175, 80, 0.12);
-  --red:     #ef5350;
-  --red-bg:  rgba(239, 83, 80, 0.12);
+  --green:   #68d391;
+  --green-bg: rgba(104, 211, 145, 0.14);
+  --red:     #ff7b7b;
+  --red-bg:  rgba(255, 123, 123, 0.14);
+  --log-info: #9bd0ff;
+  --log-success: #80e6a1;
+  --log-warn: #ffd166;
+  --log-error: #ff8b8b;
+  --log-muted: #aeb8c7;
 
   /* 平台專屬配色 */
   --kktix-color:     #64c025;
@@ -36,6 +43,9 @@
   --tixcraft-color:  rgb(2, 108, 223);
   --tixcraft-bg:     rgba(2, 108, 223, 0.12);
   --tixcraft-border: rgba(2, 108, 223, 0.3);
+  --momoshop-color:  #e60012;
+  --momoshop-bg:     rgba(230, 0, 18, 0.12);
+  --momoshop-border: rgba(230, 0, 18, 0.3);
   --amber:   #ffb300;
   --blue:    #42a5f5;
   --blue-bg: rgba(66, 165, 245, 0.12);
@@ -68,6 +78,50 @@
   /* popup 尺寸 */
   --popup-min-w: 340px;
   --popup-max-w: 340px;
+}
+
+[data-theme="light"] {
+  --bg-base:        #f4f7fb;
+  --bg-surface:     #ffffff;
+  --bg-elevated:    #eef3f8;
+  --bg-hover:       #e4ebf4;
+  --bg-input:       #ffffff;
+  --bg-log:         #f8fafc;
+
+  --border-subtle:  #d8e0ea;
+  --border-default: #c7d2df;
+  --border-strong:  #8fa1b7;
+
+  --text-primary:   #172033;
+  --text-secondary: #3d4c63;
+  --text-muted:     #66758a;
+  --text-link:      #075fae;
+  --placeholder:    #7b8798;
+
+  --accent-primary: #244c9f;
+  --accent-hover:   #315fbf;
+  --accent-glow:    rgba(36, 76, 159, 0.18);
+
+  --green:   #168047;
+  --green-bg: rgba(22, 128, 71, 0.12);
+  --red:     #c62828;
+  --red-bg:  rgba(198, 40, 40, 0.1);
+  --log-info: #075fae;
+  --log-success: #168047;
+  --log-warn: #9a5b00;
+  --log-error: #c62828;
+  --log-muted: #546274;
+
+  --kktix-color:     #3f8f16;
+  --kktix-bg:        rgba(63, 143, 22, 0.12);
+  --kktix-border:    rgba(63, 143, 22, 0.35);
+  --tixcraft-color:  #075fae;
+  --tixcraft-bg:     rgba(7, 95, 174, 0.12);
+  --tixcraft-border: rgba(7, 95, 174, 0.35);
+  --momoshop-color:  #c8102e;
+  --momoshop-bg:     rgba(200, 16, 46, 0.1);
+  --momoshop-border: rgba(200, 16, 46, 0.32);
+  --amber: #a86200;
 }
 
 
@@ -250,15 +304,62 @@ input:disabled + .slider { opacity: 0.45; cursor: not-allowed; }
 .toast-icon { font-size: var(--fs-base); flex-shrink: 0; }
 .toast-text { flex: 1; }
 
-/* ── 平台切換列 ──────────────────────────────────────────── */
-.platform-nav {
-  display: flex;
-  gap: var(--sp-1);
-  flex-shrink: 0;
+/* ── 平台選擇首頁 ────────────────────────────────────────── */
+.platform-home {
+  display: none;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-1) 2px;
+}
+
+.platform-home.active { display: flex; }
+
+.platform-card {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: var(--sp-3);
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  padding: 3px;
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-family: inherit;
+  padding: var(--sp-3);
+  text-align: left;
+  transition: background var(--transition), border-color var(--transition), transform 0.1s;
+}
+
+.platform-card:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+
+.platform-card:active { transform: scale(0.99); }
+
+.platform-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.platform-card-title {
+  font-size: var(--fs-md);
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.platform-card-desc {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .platform-btn {
@@ -317,24 +418,121 @@ input:disabled + .slider { opacity: 0.45; cursor: not-allowed; }
   box-shadow: 0 0 6px rgba(255, 179, 0, 0.4);
 }
 
+.platform-btn[data-platform="momoshop"] .platform-icon {
+  background: var(--momoshop-color);
+  box-shadow: 0 0 6px rgba(230, 0, 18, 0.4);
+}
+
+.platform-card[data-platform="kktix"] .platform-icon {
+  background: var(--kktix-color);
+  box-shadow: 0 0 6px rgba(100, 192, 37, 0.4);
+}
+
+.platform-card[data-platform="tixcraft"] .platform-icon {
+  background: var(--tixcraft-color);
+  box-shadow: 0 0 6px rgba(2, 108, 223, 0.4);
+}
+
+.platform-card[data-platform="inline"] .platform-icon {
+  background: var(--amber);
+  box-shadow: 0 0 6px rgba(255, 179, 0, 0.4);
+}
+
+.platform-card[data-platform="momoshop"] .platform-icon {
+  background: var(--momoshop-color);
+  box-shadow: 0 0 6px rgba(230, 0, 18, 0.4);
+}
+
 .platform-btn.active .platform-icon {
   opacity: 0.8;
 }
 
-/* ── 平台面板 ────────────────────────────────────────────── */
-.platform-panel {
+/* ── 平台工作台 ──────────────────────────────────────────── */
+.platform-panel,
+.platform-workspace {
   display: none;
   flex: 1;
   min-height: 0;
   flex-direction: column;
   gap: var(--sp-2);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
-.platform-panel.active { display: flex; }
+.platform-panel.active,
+.platform-workspace.active { display: flex; }
+
+.workspace-header {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.theme-toggle-btn {
+  margin-left: auto;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+
+.theme-toggle-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.theme-toggle-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.workspace-back {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  padding: 5px var(--sp-2);
+  white-space: nowrap;
+}
+
+.workspace-back:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.workspace-title {
+  color: var(--text-primary);
+  font-size: var(--fs-base);
+  font-weight: 800;
+}
+
+.workspace-subtitle {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* ── 子 Tab 導覽 ──────────────────────────────────────────── */
 .tab-nav {
-  display: flex;
+  display: none;
   gap: 0;
   border-bottom: 1px solid var(--border-default);
   flex-shrink: 0;
@@ -381,6 +579,17 @@ input:disabled + .slider { opacity: 0.45; cursor: not-allowed; }
 }
 
 .tab-panel.active { display: flex; }
+
+.platform-workspace.active .tab-panel {
+  display: flex;
+  flex: 0 0 auto;
+  overflow: visible;
+  padding: 0 2px;
+}
+
+.platform-workspace.active .tab-run-layout {
+  overflow: visible;
+}
 
 /* 執行控制 Tab：日誌填滿剩餘高度 */
 .tab-run-layout { overflow: hidden; }
@@ -515,10 +724,16 @@ input:disabled + .slider { opacity: 0.45; cursor: not-allowed; }
   border: 1px solid var(--tixcraft-border);
 }
 
+.platform-badge.platform-momoshop {
+  background: var(--momoshop-bg);
+  color: var(--momoshop-color);
+  border: 1px solid var(--momoshop-border);
+}
+
 .hint {
   font-size: var(--fs-xs);
-  font-weight: 400;
-  color: var(--text-muted);
+  font-weight: 500;
+  color: var(--text-secondary);
   text-transform: none;
   letter-spacing: 0;
   line-height: 1.4;
@@ -557,7 +772,7 @@ input:disabled + .slider { opacity: 0.45; cursor: not-allowed; }
 
 .input::placeholder,
 .textarea::placeholder {
-  color: var(--text-muted);
+  color: var(--placeholder);
 }
 
 select.input {
@@ -621,7 +836,7 @@ select.input {
   width: 100%;
   background: var(--bg-elevated);
   border: 1px solid var(--border-default);
-  color: var(--text-secondary);
+  color: var(--text-primary);
   flex-shrink: 0;
 }
 .btn-save:hover:not(:disabled) {
@@ -679,7 +894,7 @@ select.input {
 /* ── 執行紀錄區 ──────────────────────────────────────────── */
 .log-area {
   flex: 1;
-  background: #070709;
+  background: var(--bg-log);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   padding: var(--sp-2) var(--sp-3);
@@ -692,11 +907,11 @@ select.input {
   scrollbar-color: var(--border-strong) transparent;
 }
 
-.log-entry         { color: #8080a0; padding: 1px 0; }
-.log-entry.info    { color: #7eb8ff; }
-.log-entry.success { color: #66bb6a; }
+.log-entry         { color: var(--log-muted); padding: 1px 0; }
+.log-entry.info    { color: var(--log-info); }
+.log-entry.success { color: var(--log-success); }
 .log-entry.warn    { color: var(--amber); }
-.log-entry.error   { color: #ff6b6b; }
+.log-entry.error   { color: var(--log-error); }
 
 /* ── 票種清單 ────────────────────────────────────────────── */
 .area-header {
@@ -717,7 +932,7 @@ select.input {
 }
 
 .ticket-placeholder {
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-size: var(--fs-xs);
   padding: var(--sp-3);
   text-align: center;
@@ -784,6 +999,162 @@ select.input {
   font-weight: 600;
   white-space: nowrap;
   flex-shrink: 0;
+}
+
+.momoshop-tab-list {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  max-height: 170px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+  flex-shrink: 0;
+}
+
+.momoshop-tab-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.momoshop-tab-row:last-child { border-bottom: none; }
+
+.momoshop-tab-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.momoshop-tab-title {
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.momoshop-tab-meta,
+.momoshop-tab-log {
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.momoshop-tab-status {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.momoshop-tab-status.running { color: var(--green); }
+.momoshop-tab-status.error { color: var(--red); }
+.momoshop-tab-status.done { color: var(--text-link); }
+
+.momoshop-spec-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.momoshop-spec-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  max-height: 220px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.momoshop-spec-group {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.momoshop-spec-group-title {
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.momoshop-spec-group-meta {
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.momoshop-spec-btn {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--fs-xs);
+  padding: 2px 6px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.momoshop-spec-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.momoshop-spec-btn.selected {
+  background: var(--momoshop-bg);
+  border-color: var(--momoshop-color);
+  color: var(--momoshop-color);
+  box-shadow: 0 0 0 1px var(--momoshop-border);
+}
+
+.momoshop-spec-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+.momoshop-tab-stop {
+  align-self: center;
+  background: transparent;
+  border: 1px solid var(--red);
+  color: var(--red);
+  padding: 3px var(--sp-2);
+  font-size: var(--fs-xs);
+  border-radius: var(--radius-sm);
+}
+
+.momoshop-tab-stop:hover:not(:disabled) {
+  background: var(--red-bg);
+}
+
+.momoshop-tab-stop:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 /* ── 手動輸入備用區 ──────────────────────────────────────── */
@@ -873,7 +1244,12 @@ select.input {
 .input:focus-visible,
 .textarea:focus-visible,
 .tab-btn:focus-visible,
-.platform-btn:focus-visible {
+.platform-btn:focus-visible,
+.platform-card:focus-visible,
+.workspace-back:focus-visible,
+.theme-toggle-btn:focus-visible,
+.momoshop-spec-btn:focus-visible,
+.momoshop-tab-stop:focus-visible {
   outline: 2px solid var(--accent-hover);
   outline-offset: 2px;
 }
@@ -889,7 +1265,6 @@ select.input {
 @media (max-height: 480px) {
   .header { padding-bottom: 4px; }
   .global-toggle-section { padding: 5px var(--sp-2); }
-  .platform-nav { padding: 2px; }
   .tab-btn { padding: 4px 8px; }
 }
 .form-grid-3 { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(140px, 1fr) auto; gap: 8px; align-items: center; }

@@ -15,7 +15,8 @@
         <div class="header">
             <span class="logo">🎫</span>
             <h1>搶票助手 Pro</h1>
-            <span class="header-sub">KKTIX &amp; Tixcraft &amp; Inline</span>
+            <span class="header-sub">KKTIX &amp; Tixcraft &amp; Inline &amp; momo</span>
+            <button id="themeToggleBtn" class="theme-toggle-btn" type="button">亮色</button>
         </div>
 
         <!-- 全域啟用開關 -->
@@ -33,30 +34,49 @@
         <!-- Toast 通知 -->
         <div id="toast" class="toast"></div>
 
-        <!-- 平台切換列 -->
-        <div class="platform-nav">
-            <button class="platform-btn active" data-platform="kktix">
+        <!-- 平台選擇首頁 -->
+        <div id="platform-home" class="platform-home active">
+            <button class="platform-card" data-platform="kktix">
                 <span class="platform-icon"></span>
-                KKTIX
+                <span class="platform-card-main">
+                    <span class="platform-card-title">KKTIX</span>
+                    <span class="platform-card-desc">票種、會員代碼、問答設定</span>
+                </span>
             </button>
-            <button class="platform-btn" data-platform="tixcraft">
+            <button class="platform-card" data-platform="tixcraft">
                 <span class="platform-icon"></span>
-                Tixcraft
+                <span class="platform-card-main">
+                    <span class="platform-card-title">Tixcraft</span>
+                    <span class="platform-card-desc">場次、區域、OCR 驗證碼</span>
+                </span>
             </button>
-            <button class="platform-btn" data-platform="inline">
+            <button class="platform-card" data-platform="inline">
                 <span class="platform-icon"></span>
-                Inline
+                <span class="platform-card-main">
+                    <span class="platform-card-title">Inline</span>
+                    <span class="platform-card-desc">訂位順位與聯絡資訊</span>
+                </span>
             </button>
-            <button class="platform-btn" data-platform="momoshop">
+            <button class="platform-card" data-platform="momoshop">
                 <span class="platform-icon"></span>
-                🗡 Momoshop
+                <span class="platform-card-main">
+                    <span class="platform-card-title">momo</span>
+                    <span class="platform-card-desc">商品分頁、規格、收件付款</span>
+                </span>
             </button>
         </div>
 
         <!-- ═══════════════════════════════════════════ -->
         <!--  KKTIX 面板                                 -->
         <!-- ═══════════════════════════════════════════ -->
-        <div id="panel-kktix" class="platform-panel active">
+        <div id="workspace-kktix" class="platform-workspace" data-platform="kktix">
+            <div class="workspace-header">
+                <button type="button" class="workspace-back">← 平台選擇</button>
+                <div>
+                    <div class="workspace-title">KKTIX 工作台</div>
+                    <div class="workspace-subtitle">設定票種與執行搶票流程</div>
+                </div>
+            </div>
 
             <!-- 子 Tab 導覽列 -->
             <div class="tab-nav">
@@ -174,12 +194,19 @@
                 <div id="kktix-logArea" class="log-area"></div>
             </div><!-- /kktix-tab-run -->
 
-        </div><!-- /panel-kktix -->
+        </div><!-- /workspace-kktix -->
 
         <!-- ═══════════════════════════════════════════ -->
         <!--  Tixcraft 面板                              -->
         <!-- ═══════════════════════════════════════════ -->
-        <div id="panel-tixcraft" class="platform-panel">
+        <div id="workspace-tixcraft" class="platform-workspace" data-platform="tixcraft">
+            <div class="workspace-header">
+                <button type="button" class="workspace-back">← 平台選擇</button>
+                <div>
+                    <div class="workspace-title">Tixcraft 工作台</div>
+                    <div class="workspace-subtitle">設定場次、區域與驗證碼流程</div>
+                </div>
+            </div>
 
             <!-- 子 Tab 導覽列 -->
             <div class="tab-nav">
@@ -262,7 +289,7 @@
                 </details>
 
                 <button id="tixcraft-saveBtn" class="btn btn-save">💾 儲存設定</button>
-            </div>
+            </div><!-- /tixcraft-tab-basic -->
 
             <!-- Tab 2：進階設定 -->
             <div id="tixcraft-tab-logic" class="tab-panel">
@@ -327,12 +354,127 @@
                 <div id="tixcraft-logArea" class="log-area"></div>
             </div><!-- /tixcraft-tab-run -->
 
-        </div><!-- /panel-tixcraft -->
+        </div><!-- /workspace-tixcraft -->
+
+
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!--  Momoshop 面板                              -->
+        <!-- ═══════════════════════════════════════════ -->
+        <div id="workspace-momoshop" class="platform-workspace" data-platform="momoshop">
+            <div class="workspace-header">
+                <button type="button" class="workspace-back">← 平台選擇</button>
+                <div>
+                    <div class="workspace-title">momo 工作台</div>
+                    <div class="workspace-subtitle">商品分頁、規格、收件付款整合操作</div>
+                </div>
+            </div>
+            <div class="tab-nav">
+                <button class="tab-btn active" data-tab="momoshop-tab-basic">📝 商品設定</button>
+                <button class="tab-btn" data-tab="momoshop-tab-receiver">👤 收件付款</button>
+                <button class="tab-btn" data-tab="momoshop-tab-run">▶️ 執行控制</button>
+            </div>
+
+            <div id="momoshop-tab-basic" class="tab-panel active">
+                <div class="section-group">
+                    <div class="section-group-title">商品分頁啟動方式</div>
+                    <div class="hint">請先手動開好要搶購的 momo 商品分頁，再到「執行控制」啟動；一次最多啟動 6 個商品分頁。</div>
+                </div>
+                <div class="button-group">
+                    <button id="momoshop-refreshTabsBtn" class="btn btn-save">🔄 重新整理分頁</button>
+                    <button id="momoshop-fetchSpecsBtn" class="btn btn-save">抓取商品規格</button>
+                </div>
+                <div id="momoshop-specSelectionPanel" class="momoshop-spec-panel">
+                    <div class="ticket-placeholder">抓取商品規格後，會在這裡選擇每個商品分頁要購買的規格</div>
+                </div>
+                <div class="section">
+                    <label class="label" for="momoshop-reloadDelay">重整延遲（秒）</label>
+                    <input type="number" id="momoshop-reloadDelay" class="input" min="0.1" max="60" step="0.1"
+                        value="1" />
+                    <div class="hint">找不到「直接購買」或流程錯誤時，等待指定秒數後重新整理。</div>
+                </div>
+                <button id="momoshop-saveBtn" class="btn btn-save">💾 儲存商品設定</button>
+            </div>
+
+            <div id="momoshop-tab-receiver" class="tab-panel">
+                <div class="section">
+                    <label class="label label-required" for="momoshop-receiverName">收件人姓名 <span
+                            class="required-mark">*</span></label>
+                    <input type="text" id="momoshop-receiverName" class="input" placeholder="例如：王小明" />
+                </div>
+                <div class="section">
+                    <label class="label label-required" for="momoshop-receiverPhone">手機號碼 <span
+                            class="required-mark">*</span></label>
+                    <input type="tel" id="momoshop-receiverPhone" class="input" placeholder="例如：0912345678" />
+                    <div class="hint">會自動拆成前 4 碼與後 6 碼填入 momo 表單。</div>
+                </div>
+                <div class="section">
+                    <label class="label label-required" for="momoshop-receiverCity">縣市 <span
+                            class="required-mark">*</span></label>
+                    <input type="text" id="momoshop-receiverCity" class="input" placeholder="例如：台北市" />
+                </div>
+                <div class="section">
+                    <label class="label label-required" for="momoshop-receiverPost">鄉鎮市區 <span
+                            class="required-mark">*</span></label>
+                    <input type="text" id="momoshop-receiverPost" class="input" placeholder="例如：大安區" />
+                </div>
+                <div class="section">
+                    <label class="label label-required" for="momoshop-receiverAddr">詳細地址 <span
+                            class="required-mark">*</span></label>
+                    <input type="text" id="momoshop-receiverAddr" class="input" placeholder="例如：復興南路一段..." />
+                </div>
+                <div class="section">
+                    <label class="label" for="momoshop-paymentMethod">付款方式</label>
+                    <select id="momoshop-paymentMethod" class="input">
+                        <option value="MPAY_ID">行動支付</option>
+                    </select>
+                </div>
+                <div class="section">
+                    <label class="label" for="momoshop-mobilePaymentMethod">行動支付</label>
+                    <select id="momoshop-mobilePaymentMethod" class="input">
+                        <option value="Linepay_ID">Line Pay</option>
+                    </select>
+                </div>
+                <button id="momoshop-saveReceiverBtn" class="btn btn-save">💾 儲存收件付款</button>
+            </div>
+
+            <div id="momoshop-tab-run" class="tab-panel tab-run-layout">
+                <div class="status-bar" id="momoshop-statusBar">
+                    <span class="status-dot idle" id="momoshop-statusDot"></span>
+                    <span id="momoshop-statusText">待機中</span>
+                </div>
+                <div class="button-group">
+                    <button id="momoshop-startBtn" class="btn btn-start">▶ 啟動已開商品分頁</button>
+                    <button id="momoshop-stopAllTabsBtn" class="btn btn-stop">⏹ 停止已開商品分頁</button>
+                </div>
+                <div class="log-header">
+                    <label class="label">商品分頁清單</label>
+                    <span class="hint">最多 6 個執行中分頁</span>
+                </div>
+                <div id="momoshop-tabSessionList" class="momoshop-tab-list">
+                    <div class="ticket-placeholder">尚未偵測到 momo 商品分頁</div>
+                </div>
+                <div class="log-header">
+                    <label class="label">執行紀錄</label>
+                    <button id="momoshop-clearLogBtn" class="btn btn-clear-log" title="清除日誌">🗑 清除</button>
+                </div>
+                <div id="momoshop-logArea" class="log-area"></div>
+            </div>
+        </div><!-- /workspace-momoshop -->
+
+
 
         <!-- ═══════════════════════════════════════════ -->
         <!--  Inline 面板                                -->
         <!-- ═══════════════════════════════════════════ -->
-        <div id="panel-inline" class="platform-panel">
+        <div id="workspace-inline" class="platform-workspace" data-platform="inline">
+            <div class="workspace-header">
+                <button type="button" class="workspace-back">← 平台選擇</button>
+                <div>
+                    <div class="workspace-title">Inline 工作台</div>
+                    <div class="workspace-subtitle">設定訂位順位與聯絡資訊</div>
+                </div>
+            </div>
             <div class="tab-nav">
                 <button class="tab-btn active" data-tab="inline-tab-basic">📝 基礎設定</button>
                 <button class="tab-btn" data-tab="inline-tab-contact">👤 聯絡資訊</button>
@@ -472,76 +614,11 @@
                 </div>
                 <div id="inline-logArea" class="log-area"></div>
             </div>
-        </div><!-- /panel-inline -->
-
-        <!-- ═══════════════════════════════════════════ -->
-        <!--  Momoshop 面板                                 -->
-        <!-- ═══════════════════════════════════════════ -->
-        <div id="panel-momoshop" class="platform-panel">
-
-            <!-- 子 Tab 導覽列 -->
-            <div class="tab-nav">
-                <button class="tab-btn active" data-tab="momoshop-tab-basic">📝 基礎設定</button>
-                <button class="tab-btn" data-tab="momoshop-tab-logic">⚙️ 進階設定</button>
-                <button class="tab-btn" data-tab="momoshop-tab-run">▶️ 執行控制</button>
-            </div>
-
-            <!-- Tab 1：基礎設定 -->
-            <div id="momoshop-tab-basic" class="tab-panel active">
-                <div class="section">
-                    <label class="label label-required" for="momoshop-buyCount">
-                        <span class="step-number">1️⃣</span>購買數量 <span class="required-mark">*</span>
-                    </label>
-                    <input type="number" id="momoshop-buyCount" class="input" min="1" max="10" value="1"
-                        placeholder="輸入購買數量" />
-                </div>
-                <div class="section">
-                    <label class="label" for="momoshop-name">收件人姓名</label>
-                    <input type="text" id="momoshop-name" class="input" placeholder="姓名" />
-                </div>
-                <div class="section">
-                    <label class="label" for="momoshop-phone">電話</label>
-                    <input type="text" id="momoshop-phone" class="input" placeholder="電話" />
-                </div>
-                <div class="section">
-                    <label class="label" for="momoshop-address">地址</label>
-                    <input type="text" id="momoshop-address" class="input" placeholder="收件地址" />
-                </div>
-                <button id="momoshop-saveBtn" class="btn btn-save">💾 儲存設定</button>
-            </div>
-
-            <!-- Tab 2：進階設定 -->
-            <div id="momoshop-tab-logic" class="tab-panel">
-                <div class="section">
-                    <label class="label" for="momoshop-reloadDelay">重整延遲（秒）</label>
-                    <input type="number" id="momoshop-reloadDelay" class="input" min="0.1" max="60" step="0.1" value="1"
-                        placeholder="例如：1" />
-                    <div class="hint">0.1 代表 0.1 秒；1 代表 1 秒</div>
-                </div>
-                <button id="momoshop-saveBtnLogic" class="btn btn-save">💾 儲存設定</button>
-            </div>
-
-            <!-- Tab 3：執行控制 -->
-            <div id="momoshop-tab-run" class="tab-panel tab-run-layout">
-                <div class="status-bar" id="momoshop-statusBar">
-                    <span class="status-dot idle" id="momoshop-statusDot"></span>
-                    <span id="momoshop-statusText">待機中</span>
-                </div>
-                <div class="button-group">
-                    <button id="momoshop-startBtn" class="btn btn-start">▶ 開始購買</button>
-                    <button id="momoshop-stopBtn" class="btn btn-stop" disabled>⏹ 停止</button>
-                </div>
-                <div class="log-header">
-                    <label class="label">執行紀錄</label>
-                    <button id="momoshop-clearLogBtn" class="btn btn-clear-log" title="清除日誌">🗑 清除</button>
-                </div>
-                <div id="momoshop-logArea" class="log-area"></div>
-            </div>
-        </div>
+        </div><!-- /workspace-inline -->
 
         <!-- 頁尾 -->
         <div class="footer">
-            <span> kktix.com &nbsp;|&nbsp; tixcraft.com &nbsp;|&nbsp; inline.app</span>
+            <span> kktix.com &nbsp;|&nbsp; tixcraft.com &nbsp;|&nbsp; inline.app &nbsp;|&nbsp; momoshop.com.tw</span>
         </div>
 
     </div><!-- /container -->
