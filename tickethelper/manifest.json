@@ -18,7 +18,8 @@
     "https://inline.app/*",
     "https://*.inline.app/*",
     "http://localhost:*/*",
-    "https://localhost:*/*"
+    "https://localhost:*/*",
+    "https://*.momoshop.com.tw/*"
   ],
   "action": {
     "default_title": "搶票助手 Pro"
@@ -68,9 +69,33 @@
         "https://*.inline.app/*"
       ],
       "js": [
+        "shared.js",
         "inline/inline-content.js"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.momoshop.com.tw/*"
+      ],
+      "js": [
+        "shared.js",
+        "momoshop/momoshop-alert-override.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "https://www.momoshop.com.tw/*"
+      ],
+      "js": [
+        "shared.js",
+        "momoshop/momoshop-content.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true
     }
   ],
   "background": {
