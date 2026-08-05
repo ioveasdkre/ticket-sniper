@@ -144,7 +144,8 @@ if (window.__tixcraftLoaded) {
     // ============================================================
     // 監聆並攻擊 Tixcraft 的 alert 和 confirm 彈窗
     // 記錄彈窗訊息並自動恢復原始函式
-    // ============================================================    const originalAlert = window.alert;
+    // ============================================================    
+    const originalAlert = window.alert;
     const originalConfirm = window.confirm;
 
     window.addEventListener("__tixcraft_alert", event => {

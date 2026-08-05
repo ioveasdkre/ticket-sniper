@@ -59,6 +59,18 @@
         "https://*.kktix.com/*"
       ],
       "js": [
+        "kktix/kktix-alert-override.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "https://kktix.com/*",
+        "https://*.kktix.com/*"
+      ],
+      "js": [
         "shared.js",
         "kktix/kktix-content.js"
       ],

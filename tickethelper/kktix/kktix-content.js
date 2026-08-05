@@ -315,11 +315,14 @@ if (window.__kktixLoaded) {
 
     // ── 攔截 alert 並重整 ────────────────────────────────────────
     const originalAlert = window.alert;
-    window.alert = function (message) {
-        sendLogKKTIX(`⚠️ 攔截到 alert：${message}`, "warn");
-        originalAlert.apply(window, arguments);
-        window.location.reload();
-    };
+
+    window.addEventListener("__kktix_alert", event => {
+        const message = event.detail ?? "";
+        if (!message) return;
+        sendLogKKTIX(`攔截 alert：${message}`, "warn");
+        window.alert = originalAlert;
+    });
+
 
     // ── DOM 就緒後自動恢復 KKTIX 進度（reload 之後可自動重新執行）
     function onDomReady() {
