@@ -1050,20 +1050,43 @@ if (window.__ticketplusLoaded) {
         is_popup_confirm: false,
     };
 
+    // 進入確認頁後的收尾狀態
+    // DONE 事件只是通知 popup，本身不會停下主迴圈；沒有這個旗標的話，
+    // 使用者從確認頁返回購票頁時，主迴圈會再跑一次選票送單。
+    let flowCompleted = false;
+    let confirmReachedAt = 0;
+
+    // 同意條款的 checkbox 由 Vue 掛載，進入確認頁當下不一定存在，
+    // 因此保留一段寬限時間持續嘗試勾選，之後才真正結束主迴圈。
+    const CONFIRM_AGREE_GRACE_MS = 3000;
+
+    /**
+     * 流程收尾：清掉 storage 的執行旗標
+     * 不清的話，頁面重整時 background 的 resumePlatformRun 會重新注入腳本並送出
+     * START，或 content script 自己 autoResume，等同流程從未停止。
+     * popup 收到 DONE 時也會清一次，但側邊欄未開啟時沒有接收者，因此這裡必須自清。
+     */
+    async function finishTicketplusFlow() {
+        flowCompleted = true;
+        await controller.storageSet({ ticketplus_isRunning: false });
+    }
+
     async function ticketplusMain(url, config) {
         const lowerUrl = url.toLowerCase();
         const segmentCount = url.split("/").length;
 
         // 首頁：Python 在此自動登入後導回 homepage；本擴充功能不移植登入，
         // 改為沿用 tixcraft 模組慣例導向使用者設定的目標網址
-        if (lowerUrl === "https://ticketplus.com.tw/" && config.target_url) {
+        if (!flowCompleted && lowerUrl === "https://ticketplus.com.tw/" && config.target_url) {
             sendLogTicketplus("跳轉至目標活動網址", "info");
             window.location.href = config.target_url;
             return;
         }
 
         // https://ticketplus.com.tw/activity/XXX
-        if (lowerUrl.includes("/activity/")) {
+        // flowCompleted 之後不再自動選場次／選票：使用者返回上一頁只是想看訂單，
+        // 不該被再下一單
+        if (!flowCompleted && lowerUrl.includes("/activity/")) {
             if (segmentCount === 5) {
                 ticketplusAcceptRealnameCard();
                 ticketplusAcceptOtherActivity();
@@ -1076,7 +1099,7 @@ if (window.__ticketplusLoaded) {
 
         // https://ticketplus.com.tw/order/XXX/OOO
         if (lowerUrl.includes("/order/")) {
-            if (segmentCount === 6) {
+            if (segmentCount === 6 && !flowCompleted) {
                 ticketplusAcceptRealnameCard();
                 ticketplusAcceptOrderFail();
 
@@ -1096,11 +1119,19 @@ if (window.__ticketplusLoaded) {
             if (segmentCount === 6) {
                 if (!ticketplusDict.is_popup_confirm) {
                     ticketplusDict.is_popup_confirm = true;
+                    confirmReachedAt = Date.now();
                     sendLogTicketplus("已進入確認頁，請前往付款", "success");
                     sendEventTicketplus("DONE");
                     notifyTicketplus();
+                    await finishTicketplusFlow();
                 }
                 ticketplusTicketAgree();
+
+                // 勾選同意條款的寬限時間結束後才停迴圈，讓 popup 的「停止」狀態
+                // 與 content script 實際狀態一致
+                if (Date.now() - confirmReachedAt >= CONFIRM_AGREE_GRACE_MS) {
+                    controller.requestStop();
+                }
             } else {
                 ticketplusDict.is_popup_confirm = false;
             }
@@ -1114,6 +1145,10 @@ if (window.__ticketplusLoaded) {
      * ticketplus 是 Vue SPA，URL 會在不重新載入的情況下改變，因此必須輪詢。
      */
     async function runMainLoop(config, token) {
+        // 重新啟動時清掉上一輪的收尾狀態，否則同一個頁面實例按「開始」會直接空轉
+        flowCompleted = false;
+        ticketplusDict.is_popup_confirm = false;
+
         sendLogTicketplus("TicketPlus 搶票流程已啟動", "info");
 
         while (token === controller.state.runToken && !isStopped()) {
@@ -1177,7 +1212,6 @@ if (window.__ticketplusLoaded) {
     if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", onDomReady, { once: true });
     } else {
-        console.log("test");
         onDomReady();
     }
 }
