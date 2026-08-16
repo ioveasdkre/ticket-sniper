@@ -46,6 +46,9 @@
   --momoshop-color:  #e60012;
   --momoshop-bg:     rgba(230, 0, 18, 0.12);
   --momoshop-border: rgba(230, 0, 18, 0.3);
+  --ticketplus-color:  #00b6a8;
+  --ticketplus-bg:     rgba(0, 182, 168, 0.12);
+  --ticketplus-border: rgba(0, 182, 168, 0.3);
   --amber:   #ffb300;
   --blue:    #42a5f5;
   --blue-bg: rgba(66, 165, 245, 0.12);
@@ -121,6 +124,9 @@
   --momoshop-color:  #c8102e;
   --momoshop-bg:     rgba(200, 16, 46, 0.1);
   --momoshop-border: rgba(200, 16, 46, 0.32);
+  --ticketplus-color:  #00847a;
+  --ticketplus-bg:     rgba(0, 132, 122, 0.1);
+  --ticketplus-border: rgba(0, 132, 122, 0.32);
   --amber: #a86200;
 }
 
@@ -431,6 +437,11 @@ input:disabled + .slider { opacity: 0.45; cursor: not-allowed; }
 .platform-card[data-platform="tixcraft"] .platform-icon {
   background: var(--tixcraft-color);
   box-shadow: 0 0 6px rgba(2, 108, 223, 0.4);
+}
+
+.platform-card[data-platform="ticketplus"] .platform-icon {
+  background: var(--ticketplus-color);
+  box-shadow: 0 0 6px rgba(0, 182, 168, 0.4);
 }
 
 .platform-card[data-platform="inline"] .platform-icon {

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "搶票助手 Pro",
   "version": "1.0.1",
-  "description": "KKTIX 與 Tixcraft 整合自動搶票工具，支援區域選擇、數量設定、驗證碼辨識與自動流程執行",
+  "description": "KKTIX、Tixcraft 與 TicketPlus 整合自動搶票工具，支援區域選擇、數量設定、驗證碼辨識與自動流程執行",
   "permissions": [
     "storage",
     "activeTab",
@@ -19,6 +19,8 @@
     "https://*.inline.app/*",
     "https://www.momoshop.com.tw/*",
     "https://cart.momoshop.com.tw/*",
+    "https://ticketplus.com.tw/*",
+    "https://*.ticketplus.com.tw/*",
     "http://localhost:*/*",
     "https://localhost:*/*"
   ],
@@ -108,6 +110,30 @@
         "momoshop/momoshop-content.js"
       ],
       "run_at": "document_idle",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "https://ticketplus.com.tw/*",
+        "https://*.ticketplus.com.tw/*"
+      ],
+      "js": [
+        "ticketplus/ticketplus-alert-override.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "https://ticketplus.com.tw/*",
+        "https://*.ticketplus.com.tw/*"
+      ],
+      "js": [
+        "shared.js",
+        "ticketplus/ticketplus-content.js"
+      ],
+      "run_at": "document_start",
       "all_frames": true
     }
   ],

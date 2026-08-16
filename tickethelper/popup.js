@@ -1008,6 +1008,310 @@ async function tcInit() {
 }
 
 // ════════════════════════════════════════════════════════════════
+//  TicketPlus 邏輯
+// ════════════════════════════════════════════════════════════════
+//  設定欄位對應 chrome_tixcraft.py 的 config_dict：
+//    buyCount             → ticket_number
+//    dateAutoSelect       → date_auto_select.enable
+//    chooseDate/dateMode  → date_auto_select.date_keyword / .mode
+//    chooseArea/areaMode  → area_auto_select.area_keyword / .mode
+//    excludeArea          → keyword_exclude
+//    passDateIsSoldOut    → tixcraft.pass_date_is_sold_out
+//    autoReloadComingSoon → tixcraft.auto_reload_coming_soon_page
+//    reloadDelay          → advanced.auto_reload_page_interval
+//    userGuessString      → advanced.user_guess_string
+//    autoGuessOptions     → advanced.auto_guess_options
+// ════════════════════════════════════════════════════════════════
+
+// ── TicketPlus DOM 元素引用 ───────────────────────────────────────
+const tpBuyCountEl = document.getElementById("ticketplus-buyCount");
+const tpChooseDateEl = document.getElementById("ticketplus-chooseDate");
+const tpDateModeEl = document.getElementById("ticketplus-dateMode");
+const tpChooseAreaEl = document.getElementById("ticketplus-chooseArea");
+const tpAreaModeEl = document.getElementById("ticketplus-areaMode");
+const tpTargetUrlEl = document.getElementById("ticketplus-targetUrl");
+const tpExcludeAreaEl = document.getElementById("ticketplus-excludeArea");
+const tpUserGuessStringEl = document.getElementById("ticketplus-userGuessString");
+const tpAutoGuessOptionsEl = document.getElementById("ticketplus-autoGuessOptions");
+const tpDateAutoSelectEl = document.getElementById("ticketplus-dateAutoSelect");
+const tpPassDateIsSoldOutEl = document.getElementById("ticketplus-passDateIsSoldOut");
+const tpAutoReloadComingSoonEl = document.getElementById("ticketplus-autoReloadComingSoon");
+const tpDateFallbackEl = document.getElementById("ticketplus-dateFallback");
+const tpAreaFallbackEl = document.getElementById("ticketplus-areaFallback");
+const tpReloadDelayEl = document.getElementById("ticketplus-reloadDelay");
+const tpStartBtn = document.getElementById("ticketplus-startBtn");
+const tpStopBtn = document.getElementById("ticketplus-stopBtn");
+const tpSaveBtn = document.getElementById("ticketplus-saveBtn");
+const tpClearLogBtn = document.getElementById("ticketplus-clearLogBtn");
+const tpLogArea = document.getElementById("ticketplus-logArea");
+const tpStatusDot = document.getElementById("ticketplus-statusDot");
+const tpStatusText = document.getElementById("ticketplus-statusText");
+
+// 日誌最大保留筆數
+const TP_MAX_LOG_ENTRIES = 300;
+
+const TP_DEFAULT_EXCLUDE_AREA = "輪椅,身障,身心障礙,Restricted View,燈柱遮蔽,視線不完整";
+
+// ── TicketPlus 工具函式 ───────────────────────────────────────────
+
+// 僅渲染日誌到畫面（不寫入 storage）
+function tpRenderLogEntry(time, message, type) {
+    const entry = document.createElement("div");
+    entry.className = `log-entry ${type}`;
+    entry.textContent = `[${time}] ${message}`;
+    tpLogArea.appendChild(entry);
+    tpLogArea.scrollTop = tpLogArea.scrollHeight;
+}
+
+// 寫入日誌並持久化到 storage
+function tpAddLog(message, type = "info") {
+    const now = new Date().toLocaleTimeString("zh-TW");
+    tpRenderLogEntry(now, message, type);
+
+    chrome.storage.local.get(["ticketplus_savedLogs"], (result) => {
+        const logs = result.ticketplus_savedLogs ?? [];
+        logs.push({ time: now, message, type });
+        if (logs.length > TP_MAX_LOG_ENTRIES) {
+            logs.splice(0, logs.length - TP_MAX_LOG_ENTRIES);
+        }
+        chrome.storage.local.set({ ticketplus_savedLogs: logs });
+    });
+}
+
+function tpSetStatus(state, text) {
+    tpStatusDot.className = `status-dot ${state}`;
+    tpStatusText.textContent = text;
+}
+
+// 以半形逗號分隔關鍵字為陣列
+function tpParseKeywords(raw) {
+    return raw.split(",").map(s => s.trim()).filter(s => s.length > 0);
+}
+
+// ── TicketPlus 設定讀取 / 儲存 ────────────────────────────────────
+
+function tpLoadSettings() {
+    chrome.storage.local.get(
+        [
+            "ticketplus_buyCount", "ticketplus_dateAutoSelect", "ticketplus_chooseDate",
+            "ticketplus_dateMode", "ticketplus_chooseArea", "ticketplus_areaMode",
+            "ticketplus_excludeArea", "ticketplus_passDateIsSoldOut",
+            "ticketplus_autoReloadComingSoon", "ticketplus_reloadDelay",
+            "ticketplus_userGuessString", "ticketplus_autoGuessOptions",
+            "ticketplus_dateFallback", "ticketplus_areaFallback", "ticketplus_targetUrl",
+        ],
+        (result) => {
+            tpBuyCountEl.value = result.ticketplus_buyCount ?? 2;
+            tpDateAutoSelectEl.value = String(result.ticketplus_dateAutoSelect ?? true);
+            tpChooseDateEl.value = result.ticketplus_chooseDate ?? "";
+            tpDateModeEl.value = result.ticketplus_dateMode ?? "random";
+            tpChooseAreaEl.value = result.ticketplus_chooseArea ?? "";
+            tpAreaModeEl.value = result.ticketplus_areaMode ?? "random";
+            tpExcludeAreaEl.value = result.ticketplus_excludeArea ?? TP_DEFAULT_EXCLUDE_AREA;
+            tpPassDateIsSoldOutEl.value = String(result.ticketplus_passDateIsSoldOut ?? true);
+            tpAutoReloadComingSoonEl.value = String(result.ticketplus_autoReloadComingSoon ?? true);
+            tpReloadDelayEl.value = result.ticketplus_reloadDelay ?? 0.1;
+            tpUserGuessStringEl.value = result.ticketplus_userGuessString ?? "";
+            tpAutoGuessOptionsEl.value = String(result.ticketplus_autoGuessOptions ?? true);
+            tpDateFallbackEl.value = result.ticketplus_dateFallback ?? "refresh";
+            tpAreaFallbackEl.value = result.ticketplus_areaFallback ?? "refresh";
+            tpTargetUrlEl.value = result.ticketplus_targetUrl ?? "";
+        }
+    );
+}
+
+function tpBuildSettings() {
+    return {
+        buyCount: parseInt(tpBuyCountEl.value, 10) || 2,
+        dateAutoSelect: tpDateAutoSelectEl.value === "true",
+        chooseDate: tpChooseDateEl.value.trim(),
+        dateMode: tpDateModeEl.value,
+        chooseArea: tpChooseAreaEl.value.trim(),
+        areaMode: tpAreaModeEl.value,
+        excludeArea: tpExcludeAreaEl.value.trim(),
+        passDateIsSoldOut: tpPassDateIsSoldOutEl.value === "true",
+        autoReloadComingSoon: tpAutoReloadComingSoonEl.value === "true",
+        reloadDelay: parseFloat(tpReloadDelayEl.value) || 0,
+        userGuessString: tpUserGuessStringEl.value.trim(),
+        autoGuessOptions: tpAutoGuessOptionsEl.value === "true",
+        dateFallback: tpDateFallbackEl.value,
+        areaFallback: tpAreaFallbackEl.value,
+        targetUrl: tpTargetUrlEl.value.trim(),
+    };
+}
+
+// ── TicketPlus 與 Content Script 通訊 ────────────────────────────
+
+async function tpGetActiveTabId() {
+    return popupGetActiveTabId(["https://ticketplus.com.tw/*", "https://*.ticketplus.com.tw/*"]);
+}
+
+async function tpSendToContent(action, data = {}) {
+    const tabId = await tpGetActiveTabId();
+    if (!tabId) {
+        tpAddLog("❌ 找不到 TicketPlus 分頁，請確認已開啟 ticketplus.com.tw", "error");
+        return;
+    }
+
+    await popupInjectFiles(tabId, ["shared.js", "ticketplus/ticketplus-content.js"], (err) => {
+        tpAddLog(`⚠️ 注入腳本失敗：${err.message}`, "warn");
+    });
+
+    await popupDelay(300);
+
+    popupSendMessage(
+        tabId,
+        { action, ...data },
+        (response) => {
+            if (response?.log) {
+                tpAddLog(response.log, response.type ?? "info");
+            }
+        },
+        (runtimeError) => {
+            tpAddLog(`⚠️ 通訊錯誤：${runtimeError.message}`, "warn");
+            tpAddLog("請確認已在 TicketPlus 頁面，並重新整理後再試", "info");
+        }
+    );
+}
+
+// 把 popup 的字串設定轉成 content script 的 START payload
+function tpBuildStartPayload(settings) {
+    return {
+        buyCount: settings.buyCount,
+        dateAutoSelect: settings.dateAutoSelect,
+        chooseDate: tpParseKeywords(settings.chooseDate),
+        dateMode: settings.dateMode,
+        chooseArea: tpParseKeywords(settings.chooseArea),
+        areaMode: settings.areaMode,
+        excludeArea: tpParseKeywords(settings.excludeArea),
+        passDateIsSoldOut: settings.passDateIsSoldOut,
+        autoReloadComingSoon: settings.autoReloadComingSoon,
+        reloadDelay: settings.reloadDelay,
+        userGuessString: tpParseKeywords(settings.userGuessString),
+        autoGuessOptions: settings.autoGuessOptions,
+        dateFallback: settings.dateFallback,
+        areaFallback: settings.areaFallback,
+        targetUrl: settings.targetUrl,
+    };
+}
+
+// 把設定寫回 storage（供 tpSaveBtn 與 tpStartBtn 共用）
+function tpSettingsToStorage(settings) {
+    return {
+        ticketplus_buyCount: settings.buyCount,
+        ticketplus_dateAutoSelect: settings.dateAutoSelect,
+        ticketplus_chooseDate: settings.chooseDate,
+        ticketplus_dateMode: settings.dateMode,
+        ticketplus_chooseArea: settings.chooseArea,
+        ticketplus_areaMode: settings.areaMode,
+        ticketplus_excludeArea: settings.excludeArea,
+        ticketplus_passDateIsSoldOut: settings.passDateIsSoldOut,
+        ticketplus_autoReloadComingSoon: settings.autoReloadComingSoon,
+        ticketplus_reloadDelay: settings.reloadDelay,
+        ticketplus_userGuessString: settings.userGuessString,
+        ticketplus_autoGuessOptions: settings.autoGuessOptions,
+        ticketplus_dateFallback: settings.dateFallback,
+        ticketplus_areaFallback: settings.areaFallback,
+        ticketplus_targetUrl: settings.targetUrl,
+    };
+}
+
+// ── TicketPlus 按鈕事件 ───────────────────────────────────────────
+
+tpStartBtn.addEventListener("click", async () => {
+    const settings = tpBuildSettings();
+
+    if (!settings.buyCount || settings.buyCount < 1) {
+        tpAddLog("❌ 步驟 1：購買數量必須大於 0", "error");
+        showToast("請填寫步驟 1：購買數量", "error");
+        return;
+    }
+
+    const startPayload = tpBuildStartPayload(settings);
+
+    await popupStorageSet({
+        ...tpSettingsToStorage(settings),
+        ticketplus_isRunning: true,
+        ticketplus_runningConfig: startPayload,
+    });
+
+    tpSetStatus("running", "搶票執行中...");
+    tpStartBtn.disabled = true;
+    tpStopBtn.disabled = false;
+    tpAddLog("🚀 開始 TicketPlus 搶票流程", "info");
+
+    if (settings.targetUrl) tpAddLog(`目標網址：${settings.targetUrl}`, "info");
+    if (startPayload.chooseDate.length > 0) {
+        const dateFallbackLabel = settings.dateFallback === "select_first"
+            ? "選擇可購買場次"
+            : `重整（${settings.reloadDelay}秒）`;
+        tpAddLog(`場次關鍵字：${startPayload.chooseDate.join(" / ")}（找不到時：${dateFallbackLabel}）`, "info");
+    }
+    if (startPayload.chooseArea.length > 0) {
+        const areaFallbackLabel = settings.areaFallback === "select_first"
+            ? "選擇可購買票區"
+            : `重整（${settings.reloadDelay}秒）`;
+        tpAddLog(`票區關鍵字：${startPayload.chooseArea.join(" / ")}（找不到時：${areaFallbackLabel}）`, "info");
+    }
+    if (startPayload.excludeArea.length > 0) {
+        tpAddLog(`排除關鍵字：${startPayload.excludeArea.join(" / ")}`, "info");
+    }
+
+    await tpSendToContent("START", startPayload);
+});
+
+tpStopBtn.addEventListener("click", async () => {
+    await popupSetRunningState("ticketplus", false);
+    tpSetStatus("idle", "已停止");
+    tpStartBtn.disabled = false;
+    tpStopBtn.disabled = true;
+    tpAddLog("⏹ 使用者手動停止", "warn");
+    await tpSendToContent("STOP");
+});
+
+tpSaveBtn.addEventListener("click", () => {
+    const settings = tpBuildSettings();
+    chrome.storage.local.set(tpSettingsToStorage(settings), () => {
+        showToast("TicketPlus 設定已儲存", "success");
+        tpAddLog("✅ TicketPlus 設定已儲存", "success");
+    });
+});
+
+tpClearLogBtn.addEventListener("click", () => {
+    tpLogArea.innerHTML = "";
+    chrome.storage.local.remove("ticketplus_savedLogs");
+});
+
+// ── TicketPlus 初始化 ─────────────────────────────────────────────
+
+function tpInit() {
+    tpLoadSettings();
+
+    chrome.storage.local.get(
+        ["ticketplus_isRunning", "ticketplus_savedLogs", "globalEnabled"],
+        (result) => {
+            // 還原歷史日誌
+            (result.ticketplus_savedLogs ?? []).forEach(({ time, message, type }) => {
+                tpRenderLogEntry(time, message, type);
+            });
+
+            const globalEnabled = result.globalEnabled !== false; // 預設為 true
+
+            if (result.ticketplus_isRunning) {
+                tpSetStatus("running", "搶票執行中...");
+                tpStartBtn.disabled = true;
+                tpStopBtn.disabled = false;
+                tpAddLog("偵測到 TicketPlus 搶票流程仍在執行中", "warn");
+            } else if (globalEnabled) {
+                tpAddLog("TicketPlus 助手已載入，請設定場次與票區關鍵字後開始搶票", "info");
+            } else {
+                tpAddLog("⚠️ 腳本注入已停用，請開啟「啟用腳本注入」開關", "warn");
+            }
+        }
+    );
+}
+
+// ════════════════════════════════════════════════════════════════
 //  Momoshop 邏輯
 // ════════════════════════════════════════════════════════════════
 
@@ -1678,6 +1982,31 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
         return;
     }
 
+    // ── TicketPlus 訊息 ───────────────────────────────────────
+    if (msg.from === "ticketplus-content") {
+        switch (msg.event) {
+            case "LOG":
+                tpAddLog(msg.text, msg.type ?? "info");
+                break;
+            case "DONE":
+                chrome.storage.local.set({ ticketplus_isRunning: false });
+                tpSetStatus("idle", "流程完成");
+                tpStartBtn.disabled = false;
+                tpStopBtn.disabled = true;
+                tpAddLog("🎉 TicketPlus 已進入確認頁！", "success");
+                showToast("TicketPlus 已進入確認頁", "success", 4000);
+                break;
+            case "RELOAD":
+                tpAddLog("🔄 TicketPlus 頁面重新整理中...", "warn");
+                break;
+            case "ERROR":
+                tpSetStatus("error", "發生錯誤");
+                tpAddLog(`❌ ${msg.text}`, "error");
+                break;
+        }
+        return;
+    }
+
     // ── Momoshop 訊息 ─────────────────────────────────────────
     if (msg.from === "momoshop-content") {
         const tabId = sender?.tab?.id;
@@ -1720,6 +2049,7 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
 // ── 啟動初始化 ────────────────────────────────────────────────────
 kktixInit();
 tcInit();
+tpInit();
 momoInit();
 
 // ════════════════════════════════════════════════════════════════

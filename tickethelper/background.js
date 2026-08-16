@@ -13,6 +13,7 @@ const KKTIX_PATTERN = /^https:\/\/([a-z0-9-]+\.)?kktix\.com\//;
 const TIXCRAFT_PATTERN = /^https:\/\/([a-z0-9-]+\.)?tixcraft\.com\//;
 const INLINE_PATTERN = /^https:\/\/([a-z0-9-]+\.)?inline\.app\//;
 const MOMOSHOP_PATTERN = /^https:\/\/(www|cart)\.momoshop\.com\.tw\//;
+const TICKETPLUS_PATTERN = /^https:\/\/([a-z0-9-]+\.)?ticketplus\.com\.tw\//;
 
 /**
  * 平台重新注入規則設定
@@ -69,6 +70,34 @@ const PLATFORM_REINJECTION_RULES = [
     buildStartPayload: (cfg) => ({
       action: "START",
       ...cfg,  // Inline 直接傳送所有設定
+    }),
+  },
+  {
+    key: "ticketplus",
+    pattern: TICKETPLUS_PATTERN,
+    status: "loading",                               // 與 Tixcraft 相同，讓 MAIN world 的 alert override 盡早落地
+    runningKey: "ticketplus_isRunning",
+    configKey: "ticketplus_runningConfig",
+    injectDelayMs: 200,
+    preScripts: [{ files: ["ticketplus/ticketplus-alert-override.js"], world: "MAIN" }],
+    scripts: ["shared.js", "ticketplus/ticketplus-content.js"],
+    buildStartPayload: (cfg) => ({
+      action: "START",
+      buyCount: cfg.buyCount,
+      dateAutoSelect: cfg.dateAutoSelect !== false,
+      chooseDate: normalizeKeywordInput(cfg.chooseDate),
+      dateMode: cfg.dateMode ?? "random",
+      chooseArea: normalizeKeywordInput(cfg.chooseArea),
+      areaMode: cfg.areaMode ?? "random",
+      excludeArea: normalizeKeywordInput(cfg.excludeArea),
+      passDateIsSoldOut: cfg.passDateIsSoldOut !== false,
+      autoReloadComingSoon: cfg.autoReloadComingSoon !== false,
+      reloadDelay: cfg.reloadDelay ?? 0.1,
+      userGuessString: normalizeKeywordInput(cfg.userGuessString),
+      autoGuessOptions: cfg.autoGuessOptions !== false,
+      dateFallback: cfg.dateFallback ?? "refresh",
+      areaFallback: cfg.areaFallback ?? "refresh",
+      targetUrl: cfg.targetUrl ?? "",
     }),
   },
 ];

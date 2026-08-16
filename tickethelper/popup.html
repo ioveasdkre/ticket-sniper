@@ -15,7 +15,7 @@
         <div class="header">
             <span class="logo">🎫</span>
             <h1>搶票助手 Pro</h1>
-            <span class="header-sub">KKTIX &amp; Tixcraft &amp; Inline &amp; momo</span>
+            <span class="header-sub">KKTIX &amp; Tixcraft &amp; TicketPlus &amp; Inline &amp; momo</span>
             <button id="themeToggleBtn" class="theme-toggle-btn" type="button">亮色</button>
         </div>
 
@@ -48,6 +48,13 @@
                 <span class="platform-card-main">
                     <span class="platform-card-title">Tixcraft</span>
                     <span class="platform-card-desc">場次、區域、OCR 驗證碼</span>
+                </span>
+            </button>
+            <button class="platform-card" data-platform="ticketplus">
+                <span class="platform-icon"></span>
+                <span class="platform-card-main">
+                    <span class="platform-card-title">TicketPlus</span>
+                    <span class="platform-card-desc">場次、票區、張數、密碼驗證</span>
                 </span>
             </button>
             <button class="platform-card" data-platform="inline">
@@ -357,6 +364,179 @@
         </div><!-- /workspace-tixcraft -->
 
 
+        <!-- ═══════════════════════════════════════════ -->
+        <!--  TicketPlus 面板                            -->
+        <!-- ═══════════════════════════════════════════ -->
+        <div id="workspace-ticketplus" class="platform-workspace" data-platform="ticketplus">
+            <div class="workspace-header">
+                <button type="button" class="workspace-back">← 平台選擇</button>
+                <div>
+                    <div class="workspace-title">TicketPlus 工作台</div>
+                    <div class="workspace-subtitle">設定場次、票區、張數與密碼驗證流程</div>
+                </div>
+            </div>
+
+            <div id="ticketplus-tab-basic" class="tab-panel active">
+
+                <!-- 步驟 1：購買數量 -->
+                <div class="section">
+                    <label class="label label-required" for="ticketplus-buyCount">
+                        <span class="step-number">1️⃣</span>購買數量 <span class="required-mark">*</span>
+                    </label>
+                    <input type="number" id="ticketplus-buyCount" class="input" min="1" max="10" value="2"
+                        placeholder="輸入購買數量" />
+                    <div class="hint">對應 chrome_tixcraft.py 的 ticket_number</div>
+                </div>
+
+                <!-- 步驟 2：場次關鍵字 -->
+                <div class="section">
+                    <label class="label" for="ticketplus-chooseDate">
+                        <span class="step-number">2️⃣</span>場次關鍵字
+                    </label>
+                    <input type="text" id="ticketplus-chooseDate" class="input" placeholder="例如：10-08" />
+                    <div class="hint">多個關鍵字以半形逗號分隔，依序優先比對；單一關鍵字內以半形空白分隔代表必須全部命中</div>
+                </div>
+
+                <div class="section">
+                    <label class="label" for="ticketplus-dateMode">場次選取模式</label>
+                    <select id="ticketplus-dateMode" class="input">
+                        <option value="random">隨機挑選</option>
+                        <option value="from top to bottom">由上而下</option>
+                        <option value="from bottom to top">由下而上</option>
+                        <option value="center">置中</option>
+                    </select>
+                </div>
+
+                <!-- 步驟 3：票區關鍵字 -->
+                <div class="section">
+                    <label class="label" for="ticketplus-chooseArea">
+                        <span class="step-number">3️⃣</span>票區關鍵字
+                    </label>
+                    <input type="text" id="ticketplus-chooseArea" class="input" placeholder="例如：一般, 搖滾區" />
+                    <div class="hint">多個關鍵字以半形逗號分隔，依序優先比對；單一關鍵字內以半形空白分隔代表必須全部命中</div>
+                </div>
+
+                <div class="section">
+                    <label class="label" for="ticketplus-areaMode">票區選取模式</label>
+                    <select id="ticketplus-areaMode" class="input">
+                        <option value="random">隨機挑選</option>
+                        <option value="from top to bottom">由上而下</option>
+                        <option value="from bottom to top">由下而上</option>
+                        <option value="center">置中</option>
+                    </select>
+                </div>
+
+                <!-- 進階設定（選填） -->
+                <details class="advanced-section">
+                    <summary class="advanced-summary">⚙️ 進階設定（選填）</summary>
+                    <div class="advanced-content">
+                        <div class="section">
+                            <label class="label" for="ticketplus-targetUrl">目標網址</label>
+                            <input type="text" id="ticketplus-targetUrl" class="input"
+                                placeholder="例如：https://ticketplus.com.tw/activity/..." />
+                            <div class="hint">停留在 TicketPlus 首頁時自動跳轉至此網址</div>
+                        </div>
+
+                        <div class="section">
+                            <label class="label" for="ticketplus-excludeArea">排除關鍵字</label>
+                            <input type="text" id="ticketplus-excludeArea" class="input"
+                                placeholder="例如：輪椅, 身障, Restricted View" />
+                            <div class="hint">場次與票區都會套用；含有這些關鍵字的項目將被略過，清空代表不排除</div>
+                        </div>
+
+                        <div class="section">
+                            <label class="label" for="ticketplus-userGuessString">密碼／問題答案</label>
+                            <input type="text" id="ticketplus-userGuessString" class="input"
+                                placeholder="例如：同意, YES" />
+                            <div class="hint">對應 advanced.user_guess_string，多個答案以半形逗號分隔，依序嘗試</div>
+                        </div>
+
+                        <div class="section">
+                            <label class="label" for="ticketplus-autoGuessOptions">自動猜測驗證問題答案</label>
+                            <select id="ticketplus-autoGuessOptions" class="input">
+                                <option value="true">啟用</option>
+                                <option value="false">停用</option>
+                            </select>
+                            <div class="hint">未填答案時，自動判斷「請輸入 YES」「輸入【同意】」兩種常見題型</div>
+                        </div>
+
+                        <div class="section">
+                            <label class="label" for="ticketplus-dateAutoSelect">場次自動選擇</label>
+                            <select id="ticketplus-dateAutoSelect" class="input">
+                                <option value="true">啟用</option>
+                                <option value="false">停用</option>
+                            </select>
+                            <div class="hint">對應 date_auto_select.enable</div>
+                        </div>
+
+                        <div class="section">
+                            <label class="label" for="ticketplus-passDateIsSoldOut">略過「銷售一空」的場次</label>
+                            <select id="ticketplus-passDateIsSoldOut" class="input">
+                                <option value="true">啟用</option>
+                                <option value="false">停用</option>
+                            </select>
+                            <div class="hint">對應 tixcraft.pass_date_is_sold_out</div>
+                        </div>
+
+                        <div class="section">
+                            <label class="label" for="ticketplus-autoReloadComingSoon">自動重整未開賣頁面</label>
+                            <select id="ticketplus-autoReloadComingSoon" class="input">
+                                <option value="true">啟用</option>
+                                <option value="false">停用</option>
+                            </select>
+                            <div class="hint">對應 tixcraft.auto_reload_coming_soon_page，並負責輪詢 ticketplus API 判斷開賣</div>
+                        </div>
+
+                        <div class="section">
+                            <label class="label">找不到符合場次時</label>
+                            <select id="ticketplus-dateFallback" class="input">
+                                <option value="refresh">重新整理頁面</option>
+                                <option value="select_first">選取可購買場次</option>
+                            </select>
+                        </div>
+
+                        <div class="section">
+                            <label class="label">找不到符合票區時</label>
+                            <select id="ticketplus-areaFallback" class="input">
+                                <option value="refresh">重新整理頁面</option>
+                                <option value="select_first">選取可購買票區</option>
+                            </select>
+                        </div>
+
+                        <div class="section">
+                            <label class="label" for="ticketplus-reloadDelay">重整延遲（秒）</label>
+                            <input type="number" id="ticketplus-reloadDelay" class="input" min="0" max="60" step="0.1"
+                                value="0.1" placeholder="例如：0.1" />
+                            <div class="hint">對應 advanced.auto_reload_page_interval</div>
+                        </div>
+                    </div>
+                </details>
+
+                <button id="ticketplus-saveBtn" class="btn btn-save">💾 儲存設定</button>
+
+                <!-- 主狀態列 -->
+                <div class="status-bar" id="ticketplus-statusBar">
+                    <span class="status-dot idle" id="ticketplus-statusDot"></span>
+                    <span id="ticketplus-statusText">待命中</span>
+                </div>
+
+                <!-- 控制按鈕 -->
+                <div class="button-group">
+                    <button id="ticketplus-startBtn" class="btn btn-start">▶ 開始搶票</button>
+                    <button id="ticketplus-stopBtn" class="btn btn-stop" disabled>⏹ 停止</button>
+                </div>
+
+                <!-- 執行紀錄 -->
+                <div class="log-header">
+                    <label class="label">執行紀錄</label>
+                    <button id="ticketplus-clearLogBtn" class="btn btn-clear-log" title="清除日誌">🗑 清除</button>
+                </div>
+                <div id="ticketplus-logArea" class="log-area"></div>
+            </div><!-- /ticketplus-tab-basic -->
+
+        </div><!-- /workspace-ticketplus -->
+
+
 
         <!-- ═══════════════════════════════════════════ -->
         <!--  Momoshop 面板                              -->
@@ -628,7 +808,8 @@
 
         <!-- 頁尾 -->
         <div class="footer">
-            <span> kktix.com &nbsp;|&nbsp; tixcraft.com &nbsp;|&nbsp; inline.app &nbsp;|&nbsp; momoshop.com.tw</span>
+            <span> kktix.com &nbsp;|&nbsp; tixcraft.com &nbsp;|&nbsp; ticketplus.com.tw &nbsp;|&nbsp; inline.app &nbsp;|&nbsp;
+                momoshop.com.tw</span>
         </div>
 
     </div><!-- /container -->
