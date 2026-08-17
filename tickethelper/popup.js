@@ -2109,6 +2109,21 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
                 tpAddLog("🎉 TicketPlus 已進入確認頁！", "success");
                 showToast("TicketPlus 已進入確認頁", "success", 4000);
                 break;
+            // content script 自行停止（送出訂單後等待結果）／自行重新開始（購票失敗）
+            // 訊息內容由 content script 以 LOG 送出，這裡只同步按鈕與狀態燈
+            case "STOPPED":
+                chrome.storage.local.set({ ticketplus_isRunning: false });
+                tpStopCountdown();
+                tpSetStatus("idle", msg.text ?? "已停止");
+                tpStartBtn.disabled = false;
+                tpStopBtn.disabled = true;
+                break;
+            case "RESTART":
+                chrome.storage.local.set({ ticketplus_isRunning: true });
+                tpSetStatus("running", "搶票執行中...");
+                tpStartBtn.disabled = true;
+                tpStopBtn.disabled = false;
+                break;
             case "RELOAD":
                 tpAddLog("🔄 TicketPlus 頁面重新整理中...", "warn");
                 break;

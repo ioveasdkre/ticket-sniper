@@ -1014,6 +1014,8 @@ if (window.__ticketplusLoaded) {
             if (isFormSubmited) {
                 sendLogTicketplus("已送出訂單表單，等待結果", "success");
                 await helper.delay(500);
+                // 等待結果期間不可再選票／再送單，因此直接停止流程，改由守候程式接手
+                await stopAfterOrderSubmit(config);
             }
         }
 
@@ -1032,9 +1034,27 @@ if (window.__ticketplusLoaded) {
         return pressButton('div[role="dialog"] > div.v-dialog > button.primary-1 > span > i.v-icon');
     }
 
-    /** 購票失敗：您選擇的票種已售完或本活動有限制購票總張數 */
+    /** 購票失敗對話框：您選擇的票種已售完或本活動有限制購票總張數 */
+    const ORDER_FAIL_CARD_SELECTOR = 'div[role="dialog"] > div.v-dialog > div.v-card';
+    const ORDER_FAIL_BTN_SELECTOR = 'div[role="dialog"] > div.v-dialog > div.v-card > div > div.row > div.col > button.v-btn';
+
+    /** 取出對話框的訊息文字（去掉按鈕文字與多餘空白） */
+    function getDialogMessage(dialogCard) {
+        if (!dialogCard) return "";
+        // 直接讀 innerText 會把「確定」等按鈕文字一起帶進來，因此複製一份再移除按鈕
+        const clone = dialogCard.cloneNode(true);
+        clone.querySelectorAll("button").forEach(button => button.remove());
+        return removeHtmlTags(clone.textContent).replace(/\s+/g, " ").trim();
+    }
+
+    /** 購票失敗：關閉對話框，並把對話框訊息寫進日誌 */
     function ticketplusAcceptOrderFail() {
-        return pressButton('div[role="dialog"] > div.v-dialog > div.v-card > div > div.row > div.col > button.v-btn');
+        const message = getDialogMessage(document.querySelector(ORDER_FAIL_CARD_SELECTOR));
+        const isClosed = pressButton(ORDER_FAIL_BTN_SELECTOR);
+        if (isClosed) {
+            sendLogTicketplus(message ? `購票失敗：${message}` : "購票失敗對話框已關閉", "warn");
+        }
+        return isClosed;
     }
 
     /** chrome_tixcraft.py:11180 ticketplus_ticket_agree */
@@ -1071,7 +1091,80 @@ if (window.__ticketplusLoaded) {
      */
     async function finishTicketplusFlow() {
         flowCompleted = true;
+        stopOrderResultWatch();
         await controller.storageSet({ ticketplus_isRunning: false });
+    }
+
+    // ── 送出訂單後的等待狀態（擴充功能專屬，Python 端無對應）────────
+    //
+    // 送出訂單表單後，主迴圈若繼續跑只會在等待結果的期間重複選票、重複送單，
+    // 因此比照使用者按下「停止」把流程完全停下來，改由這裡的守候輪詢等結果：
+    //   購票失敗對話框 → 記錄對話框訊息 → 比照「開始搶票」重新啟動流程
+    //   進入確認頁     → 重新啟動流程，走既有的 DONE／同意條款收尾
+    // 守候只在流程停止時存在；使用者手動按「開始」／「停止」時一律先解除。
+    const ORDER_RESULT_WATCH_INTERVAL_MS = 200;
+    let orderResultWatchTimer = null;
+
+    function stopOrderResultWatch() {
+        if (orderResultWatchTimer === null) return;
+        clearInterval(orderResultWatchTimer);
+        orderResultWatchTimer = null;
+    }
+
+    /** 送出訂單後停止流程，等同使用者按下「停止」 */
+    async function stopAfterOrderSubmit(config) {
+        sendLogTicketplus("等待訂單結果，流程暫停", "warn");
+        sendEventTicketplus("STOPPED", { text: "等待訂單結果" });
+        controller.requestStop();
+        // 不清掉 storage 旗標的話，頁面重整時 background 會重新注入並送 START
+        await controller.storageSet({ ticketplus_isRunning: false });
+        startOrderResultWatch(config);
+    }
+
+    /** 重新啟動流程，等同使用者按下「開始搶票」 */
+    async function restartTicketplusFlow(config, reason) {
+        stopOrderResultWatch();
+        if (controller.isRunning()) return;
+
+        sendLogTicketplus(reason, "info");
+        sendEventTicketplus("RESTART", { text: reason });
+        await controller.storageSet({ ticketplus_isRunning: true });
+
+        // 對應 shared.js 的 runFlow：startRun 會清掉 shouldStop 並換新的 runToken
+        const token = controller.startRun();
+        try {
+            await runMainLoop(config, token);
+        } finally {
+            controller.finishRun(token);
+        }
+    }
+
+    function startOrderResultWatch(config) {
+        stopOrderResultWatch();
+
+        orderResultWatchTimer = setInterval(() => {
+            // 流程已被其他路徑接手（例如使用者手動開始）就不再守候
+            if (controller.isRunning()) {
+                stopOrderResultWatch();
+                return;
+            }
+
+            const lowerUrl = window.location.href.toLowerCase();
+            let reason = "";
+
+            if (lowerUrl.includes("/confirm/") || lowerUrl.includes("/confirmseat/")) {
+                reason = "訂單成功，恢復流程進行確認頁收尾";
+            } else if (ticketplusAcceptOrderFail()) {
+                // 對話框訊息已在 ticketplusAcceptOrderFail 內寫入日誌
+                reason = "購票失敗，重新開始搶票";
+            }
+
+            if (!reason) return;
+
+            restartTicketplusFlow(config, reason).catch(error => {
+                sendLogTicketplus(`重新開始搶票失敗：${error.message}`, "error");
+            });
+        }, ORDER_RESULT_WATCH_INTERVAL_MS);
     }
 
     async function ticketplusMain(url, config) {
@@ -1262,9 +1355,15 @@ if (window.__ticketplusLoaded) {
     // ============================================================
     // 初始化
     // ============================================================
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) =>
-        controller.handleRuntimeMessage(message, sender, sendResponse)
-    );
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        // 使用者手動「開始／停止」或關閉全域開關時，送出訂單後的守候一律先解除，
+        // 否則守候可能在使用者停止後又自己把流程重新啟動
+        if (message.action === "START" || message.action === "STOP" ||
+            (message.action === "updateGlobalEnabled" && message.enabled === false)) {
+            stopOrderResultWatch();
+        }
+        return controller.handleRuntimeMessage(message, sender, sendResponse);
+    });
 
     async function onDomReady() {
         await controller.loadGlobalEnabled();
