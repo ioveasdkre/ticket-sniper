@@ -98,6 +98,8 @@ const PLATFORM_REINJECTION_RULES = [
       dateFallback: cfg.dateFallback ?? "refresh",
       areaFallback: cfg.areaFallback ?? "refresh",
       targetUrl: cfg.targetUrl ?? "",
+      // 開賣排程時間（絕對毫秒時間戳），頁面重整後仍要繼續倒數
+      scheduledStartAt: cfg.scheduledStartAt ?? 0,
     }),
   },
 ];

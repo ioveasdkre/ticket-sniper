@@ -66,6 +66,7 @@ if (window.__ticketplusLoaded) {
         date_fallback: "refresh",           // 擴充功能專屬：找不到場次時的策略
         area_fallback: "refresh",           // 擴充功能專屬：找不到區域時的策略
         target_url: "",                     // 首頁導向用
+        sale_start_at: 0,                   // 擴充功能專屬：排程啟動的絕對時間（毫秒），0 代表立即執行
     };
 
     /**
@@ -95,6 +96,7 @@ if (window.__ticketplusLoaded) {
             date_fallback: raw.dateFallback ?? raw.date_fallback ?? "refresh",
             area_fallback: raw.areaFallback ?? raw.area_fallback ?? "refresh",
             target_url: String(raw.targetUrl ?? raw.target_url ?? "").trim(),
+            sale_start_at: Math.max(0, Number(raw.scheduledStartAt ?? raw.sale_start_at ?? 0) || 0),
         };
     }
 
@@ -933,7 +935,7 @@ if (window.__ticketplusLoaded) {
     let lastComingSoonPollAt = 0;
     function ticketplusOrderAutoReloadComingSoon(config) {
         // Python 主迴圈每 50ms 就送一次，實務上過於頻繁，這裡以重整延遲節流
-        const intervalMs = Math.max(200, config.reload_delay * 1000);
+        const intervalMs = Math.max(50, config.reload_delay * 1000);
         const now = Date.now();
         if (now - lastComingSoonPollAt < intervalMs) return;
         lastComingSoonPollAt = now;
@@ -958,12 +960,13 @@ if (window.__ticketplusLoaded) {
             .then(response => response.json())
             .then(data => {
                 if (data.result.product.length > 0 && data.result.product[0].status === "pending") {
-                    sendLogTicketplus("票券尚未開賣，重新整理頁面", "warn");
-                    sendEventTicketplus("RELOAD");
-                    window.location.reload();
+                    ticketplusRefreshTicketInfo(config, "票券尚未開賣");
+                    //sendLogTicketplus("票券尚未開賣，重新整理頁面", "warn");
+                    //sendEventTicketplus("RELOAD");
+                    //window.location.reload();
                 }
             })
-            .catch(() => {});
+            .catch(() => { });
     }
 
     /**
@@ -1140,6 +1143,62 @@ if (window.__ticketplusLoaded) {
         }
     }
 
+    // ============================================================
+    // 開賣時間排程（擴充功能專屬，Python 端無對應）
+    // ============================================================
+
+    /** 把秒數格式化為 hh:mm:ss */
+    function formatCountdown(totalSeconds) {
+        const value = Math.max(0, Math.floor(totalSeconds));
+        const hh = String(Math.floor(value / 3600)).padStart(2, "0");
+        const mm = String(Math.floor((value % 3600) / 60)).padStart(2, "0");
+        const ss = String(value % 60).padStart(2, "0");
+        return `${hh}:${mm}:${ss}`;
+    }
+
+    /**
+     * 倒數到設定的開賣啟動時間才進主迴圈
+     *
+     * config.sale_start_at 是「開賣時間 - 提前秒數」換算出的絕對時間戳（毫秒），
+     * 由 popup 計算後透過 START payload 傳入；0 代表沒有排程、立即執行。
+     * 因為是絕對時間，頁面重整後 background 重送 START 也能接續倒數。
+     *
+     * 等待期間完全不動作（不重整、不點擊），只回報剩餘時間；
+     * 使用者按下「停止」或流程被新的 START 取代時會立即中斷。
+     *
+     * @returns {Promise<boolean>} 等到啟動時間回傳 true；被中斷回傳 false
+     */
+    async function waitUntilSaleStart(config, token) {
+        const startAt = config.sale_start_at;
+        if (!startAt || startAt <= Date.now()) return true;
+
+        sendLogTicketplus(`⏰ 等待開賣，預計 ${new Date(startAt).toLocaleString("zh-TW")} 啟動`, "info");
+
+        let lastReportedSecond = -1;
+        while (Date.now() < startAt) {
+            if (token !== controller.state.runToken || isStopped()) {
+                sendLogTicketplus("排程等待已取消", "warn");
+                return false;
+            }
+
+            const remainMs = startAt - Date.now();
+            const remainSecond = Math.ceil(remainMs / 1000);
+
+            // 播報頻率：10 秒內每秒、60 秒內每 10 秒、其餘每分鐘，避免洗版
+            const reportStep = remainSecond <= 10 ? 1 : (remainSecond <= 60 ? 10 : 60);
+            if (remainSecond !== lastReportedSecond && remainSecond % reportStep === 0) {
+                lastReportedSecond = remainSecond;
+                sendLogTicketplus(`距離啟動還有 ${formatCountdown(remainSecond)}`, "info");
+            }
+
+            // 越接近啟動時間輪詢越密，最後一輪的誤差控制在 10ms 內
+            await helper.delay(Math.min(200, Math.max(10, remainMs)));
+        }
+
+        sendLogTicketplus("⏰ 已達啟動時間", "success");
+        return true;
+    }
+
     /**
      * 主迴圈：對應 chrome_tixcraft.py:11473 的 while True（每 50ms 一輪）
      * ticketplus 是 Vue SPA，URL 會在不重新載入的情況下改變，因此必須輪詢。
@@ -1148,6 +1207,9 @@ if (window.__ticketplusLoaded) {
         // 重新啟動時清掉上一輪的收尾狀態，否則同一個頁面實例按「開始」會直接空轉
         flowCompleted = false;
         ticketplusDict.is_popup_confirm = false;
+
+        // 有設定開賣時間時，先倒數到啟動時間再開始搶票
+        if (!(await waitUntilSaleStart(config, token))) return;
 
         sendLogTicketplus("TicketPlus 搶票流程已啟動", "info");
 

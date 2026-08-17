@@ -1029,6 +1029,9 @@ const tpChooseDateEl = document.getElementById("ticketplus-chooseDate");
 const tpDateModeEl = document.getElementById("ticketplus-dateMode");
 const tpChooseAreaEl = document.getElementById("ticketplus-chooseArea");
 const tpAreaModeEl = document.getElementById("ticketplus-areaMode");
+const tpSaleTimeEl = document.getElementById("ticketplus-saleTime");
+const tpSaleLeadSecondsEl = document.getElementById("ticketplus-saleLeadSeconds");
+const tpScheduleHintEl = document.getElementById("ticketplus-scheduleHint");
 const tpTargetUrlEl = document.getElementById("ticketplus-targetUrl");
 const tpExcludeAreaEl = document.getElementById("ticketplus-excludeArea");
 const tpUserGuessStringEl = document.getElementById("ticketplus-userGuessString");
@@ -1088,6 +1091,81 @@ function tpParseKeywords(raw) {
     return raw.split(",").map(s => s.trim()).filter(s => s.length > 0);
 }
 
+// ── TicketPlus 開賣時間排程 ───────────────────────────────────────
+
+let tpCountdownTimer = null;
+
+/**
+ * 把「開賣時間 - 提前秒數」換算成實際啟動時間
+ * @param {string} saleTime - datetime-local 的值（本地時間，如 2026-08-20T12:00:00）
+ * @param {number} leadSeconds - 提前啟動秒數
+ * @returns {number} 啟動時間的毫秒時間戳；未設定或格式錯誤回傳 0
+ */
+function tpResolveScheduledStartAt(saleTime, leadSeconds) {
+    if (!saleTime) return 0;
+    const saleAt = new Date(saleTime).getTime();
+    if (!Number.isFinite(saleAt)) return 0;
+    return saleAt - Math.max(0, leadSeconds || 0) * 1000;
+}
+
+// 把毫秒數格式化為 hh:mm:ss
+function tpFormatCountdown(ms) {
+    const total = Math.max(0, Math.ceil(ms / 1000));
+    const hh = String(Math.floor(total / 3600)).padStart(2, "0");
+    const mm = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
+    const ss = String(total % 60).padStart(2, "0");
+    return `${hh}:${mm}:${ss}`;
+}
+
+// 即時顯示換算後的實際啟動時間，讓使用者按下開始前就能確認
+function tpUpdateScheduleHint() {
+    if (!tpScheduleHintEl) return;
+
+    const leadSeconds = parseFloat(tpSaleLeadSecondsEl.value) || 0;
+    const startAt = tpResolveScheduledStartAt(tpSaleTimeEl.value, leadSeconds);
+
+    if (!startAt) {
+        tpScheduleHintEl.textContent = "未設定開賣時間，按下「開始搶票」會立即執行";
+        return;
+    }
+
+    const startLabel = new Date(startAt).toLocaleString("zh-TW");
+    tpScheduleHintEl.textContent = startAt <= Date.now()
+        ? `⚠️ 啟動時間（${startLabel}）已過，按下「開始搶票」會立即執行`
+        : `實際啟動時間：${startLabel}（開賣前 ${leadSeconds} 秒）`;
+}
+
+function tpStopCountdown() {
+    if (!tpCountdownTimer) return;
+    clearInterval(tpCountdownTimer);
+    tpCountdownTimer = null;
+}
+
+/**
+ * 在狀態列顯示距離啟動的倒數
+ * 真正的計時由 content script 負責，這裡只是側邊欄的同步顯示，
+ * 因此側邊欄關閉再開啟也能從 runningConfig 重新接上。
+ */
+function tpStartCountdown(startAt) {
+    tpStopCountdown();
+
+    const tick = () => {
+        const remain = startAt - Date.now();
+        if (remain <= 0) {
+            tpStopCountdown();
+            tpSetStatus("running", "搶票執行中...");
+            return;
+        }
+        tpSetStatus("running", `等待開賣：${tpFormatCountdown(remain)}`);
+    };
+
+    tick();
+    tpCountdownTimer = setInterval(tick, 250);
+}
+
+tpSaleTimeEl.addEventListener("input", tpUpdateScheduleHint);
+tpSaleLeadSecondsEl.addEventListener("input", tpUpdateScheduleHint);
+
 // ── TicketPlus 設定讀取 / 儲存 ────────────────────────────────────
 
 function tpLoadSettings() {
@@ -1099,6 +1177,7 @@ function tpLoadSettings() {
             "ticketplus_autoReloadComingSoon", "ticketplus_reloadDelay",
             "ticketplus_userGuessString", "ticketplus_autoGuessOptions",
             "ticketplus_dateFallback", "ticketplus_areaFallback", "ticketplus_targetUrl",
+            "ticketplus_saleTime", "ticketplus_saleLeadSeconds",
         ],
         (result) => {
             tpBuyCountEl.value = result.ticketplus_buyCount ?? 2;
@@ -1116,6 +1195,9 @@ function tpLoadSettings() {
             tpDateFallbackEl.value = result.ticketplus_dateFallback ?? "refresh";
             tpAreaFallbackEl.value = result.ticketplus_areaFallback ?? "refresh";
             tpTargetUrlEl.value = result.ticketplus_targetUrl ?? "";
+            tpSaleTimeEl.value = result.ticketplus_saleTime ?? "";
+            tpSaleLeadSecondsEl.value = result.ticketplus_saleLeadSeconds ?? 3;
+            tpUpdateScheduleHint();
         }
     );
 }
@@ -1137,6 +1219,8 @@ function tpBuildSettings() {
         dateFallback: tpDateFallbackEl.value,
         areaFallback: tpAreaFallbackEl.value,
         targetUrl: tpTargetUrlEl.value.trim(),
+        saleTime: tpSaleTimeEl.value,
+        saleLeadSeconds: parseFloat(tpSaleLeadSecondsEl.value) || 0,
     };
 }
 
@@ -1176,6 +1260,10 @@ async function tpSendToContent(action, data = {}) {
 
 // 把 popup 的字串設定轉成 content script 的 START payload
 function tpBuildStartPayload(settings) {
+    // 換算成絕對時間戳，頁面重整後 background 重送 START 仍然有效；
+    // 已經過了啟動時間就傳 0，代表立即執行。
+    const scheduledStartAt = tpResolveScheduledStartAt(settings.saleTime, settings.saleLeadSeconds);
+
     return {
         buyCount: settings.buyCount,
         dateAutoSelect: settings.dateAutoSelect,
@@ -1192,6 +1280,7 @@ function tpBuildStartPayload(settings) {
         dateFallback: settings.dateFallback,
         areaFallback: settings.areaFallback,
         targetUrl: settings.targetUrl,
+        scheduledStartAt: scheduledStartAt > Date.now() ? scheduledStartAt : 0,
     };
 }
 
@@ -1213,6 +1302,8 @@ function tpSettingsToStorage(settings) {
         ticketplus_dateFallback: settings.dateFallback,
         ticketplus_areaFallback: settings.areaFallback,
         ticketplus_targetUrl: settings.targetUrl,
+        ticketplus_saleTime: settings.saleTime,
+        ticketplus_saleLeadSeconds: settings.saleLeadSeconds,
     };
 }
 
@@ -1235,10 +1326,22 @@ tpStartBtn.addEventListener("click", async () => {
         ticketplus_runningConfig: startPayload,
     });
 
-    tpSetStatus("running", "搶票執行中...");
     tpStartBtn.disabled = true;
     tpStopBtn.disabled = false;
-    tpAddLog("🚀 開始 TicketPlus 搶票流程", "info");
+
+    if (startPayload.scheduledStartAt) {
+        const saleLabel = new Date(settings.saleTime).toLocaleString("zh-TW");
+        const startLabel = new Date(startPayload.scheduledStartAt).toLocaleString("zh-TW");
+        tpAddLog(`⏰ 已排程 TicketPlus 搶票：${saleLabel} 開賣，提前 ${settings.saleLeadSeconds} 秒於 ${startLabel} 啟動`, "info");
+        tpAddLog("等待期間請保持 TicketPlus 分頁開啟，時間到會自動執行", "info");
+        tpStartCountdown(startPayload.scheduledStartAt);
+    } else {
+        if (settings.saleTime) {
+            tpAddLog("⚠️ 設定的開賣時間已過，改為立即執行", "warn");
+        }
+        tpSetStatus("running", "搶票執行中...");
+        tpAddLog("🚀 開始 TicketPlus 搶票流程", "info");
+    }
 
     if (settings.targetUrl) tpAddLog(`目標網址：${settings.targetUrl}`, "info");
     if (startPayload.chooseDate.length > 0) {
@@ -1261,6 +1364,7 @@ tpStartBtn.addEventListener("click", async () => {
 });
 
 tpStopBtn.addEventListener("click", async () => {
+    tpStopCountdown();
     await popupSetRunningState("ticketplus", false);
     tpSetStatus("idle", "已停止");
     tpStartBtn.disabled = false;
@@ -1288,7 +1392,7 @@ function tpInit() {
     tpLoadSettings();
 
     chrome.storage.local.get(
-        ["ticketplus_isRunning", "ticketplus_savedLogs", "globalEnabled"],
+        ["ticketplus_isRunning", "ticketplus_runningConfig", "ticketplus_savedLogs", "globalEnabled"],
         (result) => {
             // 還原歷史日誌
             (result.ticketplus_savedLogs ?? []).forEach(({ time, message, type }) => {
@@ -1298,10 +1402,18 @@ function tpInit() {
             const globalEnabled = result.globalEnabled !== false; // 預設為 true
 
             if (result.ticketplus_isRunning) {
-                tpSetStatus("running", "搶票執行中...");
                 tpStartBtn.disabled = true;
                 tpStopBtn.disabled = false;
-                tpAddLog("偵測到 TicketPlus 搶票流程仍在執行中", "warn");
+
+                // 側邊欄重開時，從進行中的設定接回開賣倒數
+                const scheduledStartAt = result.ticketplus_runningConfig?.scheduledStartAt ?? 0;
+                if (scheduledStartAt > Date.now()) {
+                    tpStartCountdown(scheduledStartAt);
+                    tpAddLog(`偵測到 TicketPlus 排程等待中，預計 ${new Date(scheduledStartAt).toLocaleString("zh-TW")} 啟動`, "warn");
+                } else {
+                    tpSetStatus("running", "搶票執行中...");
+                    tpAddLog("偵測到 TicketPlus 搶票流程仍在執行中", "warn");
+                }
             } else if (globalEnabled) {
                 tpAddLog("TicketPlus 助手已載入，請設定場次與票區關鍵字後開始搶票", "info");
             } else {
@@ -1990,6 +2102,7 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
                 break;
             case "DONE":
                 chrome.storage.local.set({ ticketplus_isRunning: false });
+                tpStopCountdown();
                 tpSetStatus("idle", "流程完成");
                 tpStartBtn.disabled = false;
                 tpStopBtn.disabled = true;
@@ -2000,6 +2113,7 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
                 tpAddLog("🔄 TicketPlus 頁面重新整理中...", "warn");
                 break;
             case "ERROR":
+                tpStopCountdown();
                 tpSetStatus("error", "發生錯誤");
                 tpAddLog(`❌ ${msg.text}`, "error");
                 break;
